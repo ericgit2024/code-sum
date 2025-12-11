@@ -36,14 +36,32 @@ class CodeSearchNetLoader:
         """
         print(f"Loading CodeSearchNet dataset for {self.language}...")
         
-        # Load the dataset using the new format (without loading scripts)
-        # Use the code_search_net dataset from HuggingFace
-        dataset = load_dataset(
-            "code-search-net/code_search_net",
-            self.language,
-            cache_dir=self.cache_dir,
-            trust_remote_code=False  # Don't use loading scripts
-        )
+        try:
+            # Try loading from the new parquet format (no loading scripts)
+            # This uses the converted dataset that doesn't require scripts
+            dataset = load_dataset(
+                "code_search_net",
+                self.language,
+                cache_dir=self.cache_dir,
+                trust_remote_code=False,
+                # Use the data_files parameter to load parquet directly
+                download_mode="force_redownload" if not os.path.exists(self.cache_dir) else "reuse_dataset_if_exists"
+            )
+        except RuntimeError as e:
+            if "Dataset scripts are no longer supported" in str(e):
+                print("Falling back to alternative dataset loading method...")
+                # Alternative: Load from parquet files directly
+                dataset = load_dataset(
+                    "parquet",
+                    data_files={
+                        "train": "hf://datasets/code_search_net/python/train-*.parquet",
+                        "validation": "hf://datasets/code_search_net/python/validation-*.parquet",
+                        "test": "hf://datasets/code_search_net/python/test-*.parquet"
+                    },
+                    cache_dir=self.cache_dir
+                )
+            else:
+                raise
         
         # Combine train and validation for sampling
         combined_data = []
