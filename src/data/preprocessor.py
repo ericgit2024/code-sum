@@ -106,14 +106,14 @@ class DataPreprocessor:
         Preprocess a single sample.
         
         Args:
-            sample: Raw sample with code and summary
+            sample: Raw sample with code and docstring
             rag_system: RAG system (optional, may be None if disabled)
             
         Returns:
             Preprocessed sample with prompt and target
         """
         code = sample['code']
-        summary = sample['summary']
+        summary = sample.get('docstring', sample.get('summary', ''))  # Support both keys
         
         # Extract structures
         structures = self.extract_structures(code)
