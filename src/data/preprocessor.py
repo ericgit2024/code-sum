@@ -155,14 +155,8 @@ class DataPreprocessor:
             if i % 100 == 0:
                 print(f"Processed {i}/{len(dataset)} samples")
             
-            # Get RAG context if available
-            rag_context = ""
-            if rag_system:
-                retrieved = rag_system.retrieve(sample['code'])
-                rag_context = rag_system.format_rag_context(retrieved)
-            
-            # Preprocess sample
-            preprocessed_sample = self.preprocess_sample(sample, rag_context)
+            # Preprocess sample (RAG handled inside preprocess method)
+            preprocessed_sample = self.preprocess(sample, rag_system)
             preprocessed.append(preprocessed_sample)
         
         print(f"Preprocessing complete: {len(preprocessed)} samples")
