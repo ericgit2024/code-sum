@@ -38,9 +38,10 @@ class CodeSearchNetLoader:
         
         # Load CodeXGLUE dataset (code_x_glue_ct_code_to_text)
         # This dataset is well-maintained and doesn't use deprecated loading scripts
+        # Available configs: 'go', 'java', 'javascript', 'php', 'python', 'ruby'
         dataset = load_dataset(
             "code_x_glue_ct_code_to_text",
-            f"code_to_text-{self.language}",
+            self.language,  # Use language directly, not "code_to_text-python"
             cache_dir=self.cache_dir
         )
         
