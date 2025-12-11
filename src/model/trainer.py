@@ -113,7 +113,7 @@ class CodeSummarizationTrainer:
             fp16=self.config['training']['fp16'],
             optim=self.config['training']['optim'],
             max_grad_norm=self.config['training']['max_grad_norm'],
-            evaluation_strategy="steps",
+            eval_strategy="steps",  # Changed from evaluation_strategy
             save_strategy="steps",
             load_best_model_at_end=True,
             metric_for_best_model="eval_loss",
