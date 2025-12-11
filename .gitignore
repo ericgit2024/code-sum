@@ -22,8 +22,8 @@ outputs/
 *.bin
 *.safetensors
 
-# Data
-data/
+# Data (exclude root-level data directory only, not src/data)
+/data/
 *.pkl
 *.index
 *.faiss
