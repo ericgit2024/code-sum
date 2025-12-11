@@ -4,7 +4,7 @@
 dataset:
   name: "code_x_glue_ct_code_to_text"
   language: "python"
-  sample_size: 3000
+  sample_size: 1500  # Reduced from 3000 for faster training
   train_split: 0.8
   val_split: 0.1
   test_split: 0.1
@@ -39,20 +39,20 @@ lora:
 training:
   output_dir: "./outputs"
   num_epochs: 2
-  per_device_train_batch_size: 1  # Reduced from 4 to save memory
-  per_device_eval_batch_size: 1   # Reduced from 4 to save memory
-  gradient_accumulation_steps: 8  # Increased from 4 to maintain effective batch size
+  per_device_train_batch_size: 2  # Increased from 1 for speed
+  per_device_eval_batch_size: 2   # Increased from 1 for speed
+  gradient_accumulation_steps: 4  # Reduced from 8 for speed
   learning_rate: 2.0e-4
   weight_decay: 0.01
-  warmup_steps: 100
-  logging_steps: 10
-  save_steps: 500
-  eval_steps: 500
+  warmup_steps: 50  # Reduced from 100
+  logging_steps: 20  # Increased from 10
+  save_steps: 1000  # Increased from 500 to save less frequently
+  eval_steps: 1000  # Increased from 500 to evaluate less frequently
   save_total_limit: 2
   fp16: true
   optim: "paged_adamw_8bit"
   max_grad_norm: 0.3
-  max_seq_length: 1024  # Reduced from 2048 to save memory
+  max_seq_length: 512  # Reduced from 1024 for much faster training
   
 # RAG Configuration
 rag:
