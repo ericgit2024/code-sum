@@ -34,14 +34,15 @@ class CodeSearchNetLoader:
         Returns:
             Tuple of (train_data, val_data, test_data)
         """
-        print(f"Loading {self.dataset_name} dataset for {self.language}...")
+        print(f"Loading CodeSearchNet dataset for {self.language}...")
         
-        # Load the dataset
+        # Load the dataset using the new format (without loading scripts)
+        # Use the code_search_net dataset from HuggingFace
         dataset = load_dataset(
-            self.dataset_name,
+            "code-search-net/code_search_net",
             self.language,
             cache_dir=self.cache_dir,
-            trust_remote_code=True
+            trust_remote_code=False  # Don't use loading scripts
         )
         
         # Combine train and validation for sampling

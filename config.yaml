@@ -2,7 +2,7 @@
 
 # Dataset Configuration
 dataset:
-  name: "code_search_net"
+  name: "code-search-net/code_search_net"
   language: "python"
   sample_size: 3000
   train_split: 0.8
