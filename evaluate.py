@@ -3,10 +3,14 @@ Evaluation script for trained model.
 """
 
 import os
+import sys
 import yaml
 import argparse
 import json
 from dotenv import load_dotenv
+
+# Add project root to Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.data.dataset_loader import load_codesearchnet_dataset
 from src.data.preprocessor import DataPreprocessor

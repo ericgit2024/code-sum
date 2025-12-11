@@ -3,9 +3,13 @@ Interactive inference script for generating summaries.
 """
 
 import os
+import sys
 import yaml
 import argparse
 from dotenv import load_dotenv
+
+# Add project root to Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.data.preprocessor import DataPreprocessor
 from src.rag.rag_system import RAGSystem
