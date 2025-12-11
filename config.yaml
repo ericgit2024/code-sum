@@ -54,9 +54,10 @@ training:
   max_grad_norm: 0.3
   max_seq_length: 512
   
-# RAG Configuration - FIXED with CodeBERT
+# RAG Configuration - DISABLED (causing irrelevant summaries)
 rag:
-  embedding_model: "microsoft/codebert-base"  # Code-aware embeddings
+  enabled: false  # Disabled - retrieval contaminating summaries
+  embedding_model: "microsoft/codebert-base"
   vector_store: "faiss"
   top_k: 2
   chunk_size: 512
@@ -108,9 +109,6 @@ prompts:
     ```
     
     {structure_summary}
-    
-    Similar examples:
-    {rag_context}
     
     Docstring (natural language only):
     

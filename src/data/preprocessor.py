@@ -75,7 +75,7 @@ class DataPreprocessor:
         Args:
             code: Python source code
             structures: Extracted structures or compact summary
-            rag_context: RAG retrieval context
+            rag_context: RAG retrieval context (may be empty if RAG disabled)
             
         Returns:
             Formatted prompt string
@@ -87,36 +87,43 @@ class DataPreprocessor:
             # Compact format
             prompt = instruction_template.format(
                 code=code,
-                structure_summary=structures['summary'],
-                rag_context=rag_context
+                structure_summary=structures['summary']
             )
         else:
-            # Legacy format with AST/CFG/PDG
+            # Legacy format with AST/CFG/PDG (not used currently)
             prompt = instruction_template.format(
                 code=code,
                 ast=structures.get('ast', ''),
                 cfg=structures.get('cfg', ''),
                 pdg=structures.get('pdg', ''),
-                rag_context=rag_context
+                rag_context=rag_context # Added rag_context
             )
         
         return prompt
     
-    def preprocess_sample(self, sample: Dict, rag_context: str = "") -> Dict:
+    def preprocess(self, sample: Dict, rag_system=None) -> Dict:
         """
         Preprocess a single sample.
         
         Args:
-            sample: Sample with 'code' and 'docstring'
-            rag_context: RAG context (optional)
+            sample: Raw sample with code and summary
+            rag_system: RAG system (optional, may be None if disabled)
             
         Returns:
             Preprocessed sample with prompt and target
         """
         code = sample['code']
+        summary = sample['summary']
         
         # Extract structures
         structures = self.extract_structures(code)
+        
+        # Get RAG context only if RAG is enabled and system provided
+        rag_enabled = self.config.get('rag', {}).get('enabled', True)
+        if rag_enabled and rag_system:
+            rag_context = rag_system.retrieve(code, k=self.config['rag']['top_k'])
+        else:
+            rag_context = ""  # Empty context when RAG disabled
         
         # Format prompt
         prompt = self.format_prompt(code, structures, rag_context)
@@ -124,7 +131,7 @@ class DataPreprocessor:
         return {
             'code': code,
             'prompt': prompt,
-            'target': sample['docstring'],
+            'target': summary,
             'structures': structures
         }
     
