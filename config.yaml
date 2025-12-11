@@ -4,10 +4,10 @@
 dataset:
   name: "code_x_glue_ct_code_to_text"
   language: "python"
-  sample_size: 200  # Start small for quick testing
-  train_split: 0.7  # 140 train
-  val_split: 0.15   # 30 val
-  test_split: 0.15  # 30 test
+  sample_size: 500  # Scaled from 200 for better results
+  train_split: 0.7  # 350 train
+  val_split: 0.15   # 75 val
+  test_split: 0.15  # 75 test
   cache_dir: "./data/cache"
   
 # Model Configuration
@@ -38,27 +38,27 @@ lora:
 # Training Configuration
 training:
   output_dir: "./outputs"
-  num_epochs: 3  # Increased from 2 for better learning
+  num_epochs: 3
   per_device_train_batch_size: 2
   per_device_eval_batch_size: 2
   gradient_accumulation_steps: 4
   learning_rate: 2.0e-4
   weight_decay: 0.01
-  warmup_steps: 20  # Reduced for smaller dataset
+  warmup_steps: 50  # Increased for 500 samples
   logging_steps: 10
-  save_steps: 100
-  eval_steps: 100
+  save_steps: 150  # Adjusted for dataset size
+  eval_steps: 150
   save_total_limit: 2
   fp16: true
   optim: "paged_adamw_8bit"
   max_grad_norm: 0.3
   max_seq_length: 512
   
-# RAG Configuration
+# RAG Configuration - FIXED with CodeBERT
 rag:
-  embedding_model: "sentence-transformers/all-mpnet-base-v2"
+  embedding_model: "microsoft/codebert-base"  # Code-aware embeddings
   vector_store: "faiss"
-  top_k: 2  # Reduced from 3 to save tokens
+  top_k: 2
   chunk_size: 512
   embedding_dim: 768
   index_path: "./data/rag_index"
@@ -68,20 +68,21 @@ structure:
   extract_ast: false  # Disabled - too verbose
   extract_cfg: false  # Disabled - too verbose
   extract_pdg: false  # Disabled - too verbose
-  use_compact_summary: true  # NEW: Use compact summarizer
+  use_compact_summary: true  # Use compact summarizer
   max_ast_depth: 10
   max_cfg_nodes: 50
   max_pdg_nodes: 50
   
-# Reflective Agent Configuration
+# Reflective Agent Configuration - IMPROVED
 reflective_agent:
-  enabled: false  # Disabled for initial testing - focus on base model first
-  max_iterations: 4
+  enabled: true  # Re-enabled with better criteria
+  max_iterations: 3
   criteria:
-    - "completeness"
-    - "clarity"
-    - "accuracy"
-    - "conciseness"
+    - "accuracy"         # Does it match what the code does?
+    - "completeness"     # Covers parameters, return value, purpose?
+    - "conciseness"      # Brief, no redundancy?
+    - "natural_language" # NO code, NO syntax?
+    - "relevance"        # Related to THIS function, not others?
   threshold_score: 0.8
   temperature: 0.7
   
@@ -115,11 +116,11 @@ prompts:
     
   reflective_agent_prompt: |
     Review this docstring and check if it meets these criteria:
-    1. Completeness: Covers the function's purpose, parameters, and return value
-    2. Clarity: Written in clear, simple natural language
-    3. Accuracy: Correctly describes what the code does
-    4. Conciseness: Brief and to the point, no redundancy
-    5. Natural language: NO code, NO syntax, ONLY plain English
+    1. Accuracy: Correctly describes what the code does
+    2. Completeness: Covers the function's purpose, parameters, and return value
+    3. Conciseness: Brief and to the point, no redundancy
+    4. Natural language: NO code, NO syntax, ONLY plain English
+    5. Relevance: Describes THIS specific function, not a different one
     
     Code:
     {code}
