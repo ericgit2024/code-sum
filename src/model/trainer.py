@@ -119,7 +119,12 @@ class CodeSummarizationTrainer:
             metric_for_best_model="eval_loss",
             greater_is_better=False,
             report_to=["tensorboard"],
-            logging_dir=os.path.join(self.config['training']['output_dir'], "logs")
+            logging_dir=os.path.join(self.config['training']['output_dir'], "logs"),
+            # Memory optimization
+            gradient_checkpointing=True,
+            gradient_checkpointing_kwargs={"use_reentrant": False},
+            dataloader_pin_memory=False,
+            ddp_find_unused_parameters=False
         )
         
         # Data collator
