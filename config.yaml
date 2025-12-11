@@ -4,10 +4,10 @@
 dataset:
   name: "code_x_glue_ct_code_to_text"
   language: "python"
-  sample_size: 500  # Scaled from 200 for better results
-  train_split: 0.7  # 350 train
-  val_split: 0.15   # 75 val
-  test_split: 0.15  # 75 test
+  sample_size: 1000  # Scaled from 500 for better results
+  train_split: 0.7   # 700 train
+  val_split: 0.15    # 150 val
+  test_split: 0.15   # 150 test
   cache_dir: "./data/cache"
   
 # Model Configuration
@@ -44,10 +44,10 @@ training:
   gradient_accumulation_steps: 4
   learning_rate: 2.0e-4
   weight_decay: 0.01
-  warmup_steps: 50  # Increased for 500 samples
+  warmup_steps: 100  # Increased for 1000 samples
   logging_steps: 10
-  save_steps: 150  # Adjusted for dataset size
-  eval_steps: 150
+  save_steps: 200    # Adjusted for dataset size
+  eval_steps: 200
   save_total_limit: 2
   fp16: true
   optim: "paged_adamw_8bit"
