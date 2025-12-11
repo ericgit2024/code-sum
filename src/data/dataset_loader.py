@@ -34,34 +34,15 @@ class CodeSearchNetLoader:
         Returns:
             Tuple of (train_data, val_data, test_data)
         """
-        print(f"Loading CodeSearchNet dataset for {self.language}...")
+        print(f"Loading CodeXGLUE code-to-text dataset for {self.language}...")
         
-        try:
-            # Try loading from the new parquet format (no loading scripts)
-            # This uses the converted dataset that doesn't require scripts
-            dataset = load_dataset(
-                "code_search_net",
-                self.language,
-                cache_dir=self.cache_dir,
-                trust_remote_code=False,
-                # Use the data_files parameter to load parquet directly
-                download_mode="force_redownload" if not os.path.exists(self.cache_dir) else "reuse_dataset_if_exists"
-            )
-        except RuntimeError as e:
-            if "Dataset scripts are no longer supported" in str(e):
-                print("Falling back to alternative dataset loading method...")
-                # Alternative: Load from parquet files directly
-                dataset = load_dataset(
-                    "parquet",
-                    data_files={
-                        "train": "hf://datasets/code_search_net/python/train-*.parquet",
-                        "validation": "hf://datasets/code_search_net/python/validation-*.parquet",
-                        "test": "hf://datasets/code_search_net/python/test-*.parquet"
-                    },
-                    cache_dir=self.cache_dir
-                )
-            else:
-                raise
+        # Load CodeXGLUE dataset (code_x_glue_ct_code_to_text)
+        # This dataset is well-maintained and doesn't use deprecated loading scripts
+        dataset = load_dataset(
+            "code_x_glue_ct_code_to_text",
+            f"code_to_text-{self.language}",
+            cache_dir=self.cache_dir
+        )
         
         # Combine train and validation for sampling
         combined_data = []
@@ -108,9 +89,10 @@ class CodeSearchNetLoader:
         Returns:
             Processed sample with code and docstring
         """
+        # CodeXGLUE uses 'code' and 'docstring' fields
         return {
-            'code': sample.get('func_code_string', sample.get('whole_func_string', '')),
-            'docstring': sample.get('func_documentation_string', ''),
+            'code': sample.get('code', sample.get('func_code_string', sample.get('whole_func_string', ''))),
+            'docstring': sample.get('docstring', sample.get('func_documentation_string', '')),
             'func_name': sample.get('func_name', ''),
             'repo': sample.get('repo', ''),
             'path': sample.get('path', '')
