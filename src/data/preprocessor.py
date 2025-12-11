@@ -33,30 +33,37 @@ class DataPreprocessor:
         
     def extract_structures(self, code: str) -> Dict[str, str]:
         """
-        Extract all structural representations.
+        Extract structural representation (compact or detailed).
         
         Args:
             code: Python source code
             
         Returns:
-            Dictionary with AST, CFG, and PDG encodings
+            Dictionary with structure summary
         """
         structures = {}
         
-        if self.config['structure']['extract_ast']:
-            structures['ast'] = self.ast_extractor.extract_and_encode(code)
+        # Use compact summarizer if enabled
+        if self.config['structure'].get('use_compact_summary', False):
+            from src.structure.compact_summarizer import CompactStructureSummarizer
+            summarizer = CompactStructureSummarizer()
+            structures['summary'] = summarizer.summarize_code(code)
         else:
-            structures['ast'] = ""
-        
-        if self.config['structure']['extract_cfg']:
-            structures['cfg'] = self.cfg_extractor.extract_and_encode(code)
-        else:
-            structures['cfg'] = ""
-        
-        if self.config['structure']['extract_pdg']:
-            structures['pdg'] = self.pdg_extractor.extract_and_encode(code)
-        else:
-            structures['pdg'] = ""
+            # Use detailed extractors (legacy)
+            if self.config['structure']['extract_ast']:
+                structures['ast'] = self.ast_extractor.extract_and_encode(code)
+            else:
+                structures['ast'] = ""
+            
+            if self.config['structure']['extract_cfg']:
+                structures['cfg'] = self.cfg_extractor.extract_and_encode(code)
+            else:
+                structures['cfg'] = ""
+            
+            if self.config['structure']['extract_pdg']:
+                structures['pdg'] = self.pdg_extractor.extract_and_encode(code)
+            else:
+                structures['pdg'] = ""
         
         return structures
     
@@ -67,7 +74,7 @@ class DataPreprocessor:
         
         Args:
             code: Python source code
-            structures: Extracted structures
+            structures: Extracted structures or compact summary
             rag_context: RAG retrieval context
             
         Returns:
@@ -75,13 +82,23 @@ class DataPreprocessor:
         """
         instruction_template = self.config['prompts']['instruction_template']
         
-        prompt = instruction_template.format(
-            code=code,
-            ast=structures.get('ast', ''),
-            cfg=structures.get('cfg', ''),
-            pdg=structures.get('pdg', ''),
-            rag_context=rag_context
-        )
+        # Check if using compact summary
+        if 'summary' in structures:
+            # Compact format
+            prompt = instruction_template.format(
+                code=code,
+                structure_summary=structures['summary'],
+                rag_context=rag_context
+            )
+        else:
+            # Legacy format with AST/CFG/PDG
+            prompt = instruction_template.format(
+                code=code,
+                ast=structures.get('ast', ''),
+                cfg=structures.get('cfg', ''),
+                pdg=structures.get('pdg', ''),
+                rag_context=rag_context
+            )
         
         return prompt
     

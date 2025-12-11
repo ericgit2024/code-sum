@@ -4,10 +4,10 @@
 dataset:
   name: "code_x_glue_ct_code_to_text"
   language: "python"
-  sample_size: 1500  # Reduced from 3000 for faster training
-  train_split: 0.8
-  val_split: 0.1
-  test_split: 0.1
+  sample_size: 200  # Start small for quick testing
+  train_split: 0.7  # 140 train
+  val_split: 0.15   # 30 val
+  test_split: 0.15  # 30 test
   cache_dir: "./data/cache"
   
 # Model Configuration
@@ -38,43 +38,44 @@ lora:
 # Training Configuration
 training:
   output_dir: "./outputs"
-  num_epochs: 2
-  per_device_train_batch_size: 2  # Increased from 1 for speed
-  per_device_eval_batch_size: 2   # Increased from 1 for speed
-  gradient_accumulation_steps: 4  # Reduced from 8 for speed
+  num_epochs: 3  # Increased from 2 for better learning
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 2
+  gradient_accumulation_steps: 4
   learning_rate: 2.0e-4
   weight_decay: 0.01
-  warmup_steps: 50  # Reduced from 100
-  logging_steps: 20  # Increased from 10
-  save_steps: 1000  # Increased from 500 to save less frequently
-  eval_steps: 1000  # Increased from 500 to evaluate less frequently
+  warmup_steps: 20  # Reduced for smaller dataset
+  logging_steps: 10
+  save_steps: 100
+  eval_steps: 100
   save_total_limit: 2
   fp16: true
   optim: "paged_adamw_8bit"
   max_grad_norm: 0.3
-  max_seq_length: 512  # Reduced from 1024 for much faster training
+  max_seq_length: 512
   
 # RAG Configuration
 rag:
   embedding_model: "sentence-transformers/all-mpnet-base-v2"
   vector_store: "faiss"
-  top_k: 3
+  top_k: 2  # Reduced from 3 to save tokens
   chunk_size: 512
   embedding_dim: 768
   index_path: "./data/rag_index"
   
 # Structure Extraction Configuration
 structure:
-  extract_ast: true
-  extract_cfg: true
-  extract_pdg: true
+  extract_ast: false  # Disabled - too verbose
+  extract_cfg: false  # Disabled - too verbose
+  extract_pdg: false  # Disabled - too verbose
+  use_compact_summary: true  # NEW: Use compact summarizer
   max_ast_depth: 10
   max_cfg_nodes: 50
   max_pdg_nodes: 50
   
 # Reflective Agent Configuration
 reflective_agent:
-  max_iterations: 3
+  max_iterations: 4  # Increased from 2 for better refinement
   criteria:
     - "completeness"
     - "clarity"
@@ -91,57 +92,52 @@ evaluation:
     - "meteor"
   output_dir: "./evaluation_results"
   
-# Prompts
+# Prompts - IMPROVED for natural language generation
 prompts:
   system_prompt: |
-    You are an expert code documentation assistant. Generate concise, accurate Python docstrings that describe what the function does, its parameters, and return values.
+    You are an expert at writing clear, concise Python docstrings. Generate ONLY the docstring text in natural language. Do NOT include code, function definitions, or technical syntax.
     
   instruction_template: |
-    Given the following Python function and its structural analysis:
+    Write a clear docstring for this Python function. Describe what it does, its parameters, and what it returns. Use natural language only.
     
-    Code:
+    Function code:
+    ```python
     {code}
+    ```
     
-    AST Structure:
-    {ast}
+    {structure_summary}
     
-    Control Flow Graph:
-    {cfg}
-    
-    Program Dependence Graph:
-    {pdg}
-    
-    Similar Examples:
+    Similar examples:
     {rag_context}
     
-    Generate a clear and concise docstring for this function.
+    Docstring (natural language only):
     
   reflective_agent_prompt: |
-    You are a critical code documentation reviewer. Analyze the following draft summary and provide constructive criticism based on these criteria:
-    
-    1. Completeness: Does it cover all important aspects of the function?
-    2. Clarity: Is it written in clear, natural language?
-    3. Accuracy: Does it accurately reflect what the code does?
-    4. Conciseness: Is it free from redundancy and unnecessary details?
+    Review this docstring and check if it meets these criteria:
+    1. Completeness: Covers the function's purpose, parameters, and return value
+    2. Clarity: Written in clear, simple natural language
+    3. Accuracy: Correctly describes what the code does
+    4. Conciseness: Brief and to the point, no redundancy
+    5. Natural language: NO code, NO syntax, ONLY plain English
     
     Code:
     {code}
     
-    Draft Summary:
+    Docstring:
     {draft_summary}
     
-    Provide specific feedback on what needs improvement. If the summary meets all criteria well, respond with "APPROVED".
+    If it meets ALL criteria, respond with "APPROVED". Otherwise, list specific improvements needed.
     
   refinement_prompt: |
-    Based on the following feedback, improve the draft summary:
+    Improve this docstring based on the feedback. Write ONLY natural language description, NO code.
     
-    Original Code:
+    Code:
     {code}
     
-    Draft Summary:
+    Current docstring:
     {draft_summary}
     
     Feedback:
     {feedback}
     
-    Generate an improved docstring that addresses the feedback.
+    Improved docstring (natural language only):
