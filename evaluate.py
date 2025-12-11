@@ -86,7 +86,14 @@ def main():
     
     # Step 6: Generate predictions
     print("\n[6/6] Generating predictions...")
-    use_reflective = not args.no_reflective_agent
+    
+    # Check if reflective agent is enabled
+    use_reflective = (not args.no_reflective_agent and 
+                     config['reflective_agent'].get('enabled', True))
+    
+    if not use_reflective:
+        print("Reflective agent disabled - using base model only")
+    
     predictions = inference_pipeline.predict_batch(test_data, use_reflective_agent=use_reflective)
     
     # Evaluate

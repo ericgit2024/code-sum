@@ -75,7 +75,8 @@ structure:
   
 # Reflective Agent Configuration
 reflective_agent:
-  max_iterations: 4  # Increased from 2 for better refinement
+  enabled: false  # Disabled for initial testing - focus on base model first
+  max_iterations: 4
   criteria:
     - "completeness"
     - "clarity"
