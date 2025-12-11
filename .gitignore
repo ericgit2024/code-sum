@@ -1,0 +1,49 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Model outputs
+outputs/
+*.pth
+*.bin
+*.safetensors
+
+# Data
+data/
+*.pkl
+*.index
+*.faiss
+
+# Evaluation results
+evaluation_results/
+*.json
+
+# Logs
+logs/
+*.log
+runs/
+wandb/
+
+# Environment variables
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# HuggingFace cache
+.cache/

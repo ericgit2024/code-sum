@@ -1,0 +1,147 @@
+# Configuration for Source Code Summarization Project
+
+# Dataset Configuration
+dataset:
+  name: "code_search_net"
+  language: "python"
+  sample_size: 3000
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  cache_dir: "./data/cache"
+  
+# Model Configuration
+model:
+  name: "google/gemma-2b"
+  quantization: "4bit"
+  load_in_4bit: true
+  bnb_4bit_compute_dtype: "float16"
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_use_double_quant: true
+  
+# LoRA Configuration
+lora:
+  r: 16
+  lora_alpha: 32
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# Training Configuration
+training:
+  output_dir: "./outputs"
+  num_epochs: 2
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  warmup_steps: 100
+  logging_steps: 10
+  save_steps: 500
+  eval_steps: 500
+  save_total_limit: 2
+  fp16: true
+  optim: "paged_adamw_8bit"
+  max_grad_norm: 0.3
+  max_seq_length: 2048
+  
+# RAG Configuration
+rag:
+  embedding_model: "sentence-transformers/all-mpnet-base-v2"
+  vector_store: "faiss"
+  top_k: 3
+  chunk_size: 512
+  embedding_dim: 768
+  index_path: "./data/rag_index"
+  
+# Structure Extraction Configuration
+structure:
+  extract_ast: true
+  extract_cfg: true
+  extract_pdg: true
+  max_ast_depth: 10
+  max_cfg_nodes: 50
+  max_pdg_nodes: 50
+  
+# Reflective Agent Configuration
+reflective_agent:
+  max_iterations: 3
+  criteria:
+    - "completeness"
+    - "clarity"
+    - "accuracy"
+    - "conciseness"
+  threshold_score: 0.8
+  temperature: 0.7
+  
+# Evaluation Configuration
+evaluation:
+  metrics:
+    - "bleu"
+    - "rouge"
+    - "meteor"
+  output_dir: "./evaluation_results"
+  
+# Prompts
+prompts:
+  system_prompt: |
+    You are an expert code documentation assistant. Generate concise, accurate Python docstrings that describe what the function does, its parameters, and return values.
+    
+  instruction_template: |
+    Given the following Python function and its structural analysis:
+    
+    Code:
+    {code}
+    
+    AST Structure:
+    {ast}
+    
+    Control Flow Graph:
+    {cfg}
+    
+    Program Dependence Graph:
+    {pdg}
+    
+    Similar Examples:
+    {rag_context}
+    
+    Generate a clear and concise docstring for this function.
+    
+  reflective_agent_prompt: |
+    You are a critical code documentation reviewer. Analyze the following draft summary and provide constructive criticism based on these criteria:
+    
+    1. Completeness: Does it cover all important aspects of the function?
+    2. Clarity: Is it written in clear, natural language?
+    3. Accuracy: Does it accurately reflect what the code does?
+    4. Conciseness: Is it free from redundancy and unnecessary details?
+    
+    Code:
+    {code}
+    
+    Draft Summary:
+    {draft_summary}
+    
+    Provide specific feedback on what needs improvement. If the summary meets all criteria well, respond with "APPROVED".
+    
+  refinement_prompt: |
+    Based on the following feedback, improve the draft summary:
+    
+    Original Code:
+    {code}
+    
+    Draft Summary:
+    {draft_summary}
+    
+    Feedback:
+    {feedback}
+    
+    Generate an improved docstring that addresses the feedback.
