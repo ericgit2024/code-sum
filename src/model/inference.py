@@ -109,10 +109,24 @@ class InferencePipeline:
                         print(f"[DEBUG] Extracted from quotes: {repr(text[:100])}")
                         break
         
-        # Remove code blocks
+        # Extract text from code blocks (markdown format)
         if '```' in text:
-            # Extract text before code block
-            text = text.split('```')[0].strip()
+            # Try to extract content between code blocks
+            parts = text.split('```')
+            if len(parts) >= 3:
+                # Content is between first pair of ```
+                # Skip language identifier if present (e.g., ```python)
+                content = parts[1].strip()
+                if '\n' in content:
+                    lines = content.split('\n')
+                    # Skip first line if it's a language identifier
+                    if lines[0].strip() in ['python', 'py', 'text', '']:
+                        content = '\n'.join(lines[1:]).strip()
+                text = content
+                print(f"[DEBUG] Extracted from code block: {repr(text[:100])}")
+            else:
+                # Just remove the code block markers
+                text = text.replace('```', '').strip()
         
         # Remove lines that look like code (but be less aggressive)
         lines = text.split('\n')
