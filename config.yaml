@@ -100,9 +100,8 @@ reflective_agent:
   # Fast mode settings for evaluation
   fast_mode: false  # Enable for faster evaluation
   greedy_decoding: false  # Use greedy instead of sampling (30-50% faster)
-  max_tokens_critique: 400  # Increased to ensure complete critiques
-  max_tokens_refinement: 512  # Increased to prevent truncation
-  min_tokens_critique: 50  # Ensure critique is not empty
+  max_tokens_critique: 250  # Moderate limit with structured prompt
+  max_tokens_refinement: 300  # Enough for complete docstrings
   
 # Evaluation Configuration
 evaluation:
@@ -118,12 +117,7 @@ prompts:
     You are an expert at writing clear, concise Python docstrings. Generate ONLY the docstring text in natural language. Do NOT include code, function definitions, or technical syntax.
     
   instruction_template: |
-    Write a clear, comprehensive docstring for this Python function. You must:
-    1. Describe what the function does
-    2. Document ALL parameters and their purpose
-    3. Describe what the function returns
-    4. Capture ALL conditional logic and branches (if/else statements)
-    5. Accurately describe any calculations or formulas
+    Write a clear, comprehensive docstring for this Python function.
     
     Function code:
     ```python
@@ -132,10 +126,22 @@ prompts:
     
     {structure_summary}
     
-    Docstring (natural language only, be thorough and accurate):
+    EXAMPLE FORMAT:
+    "Calculates X by doing Y. Validates parameters (conditions). If condition A, does B; otherwise does C. Returns D."
+    
+    Requirements:
+    1. Describe what the function does
+    2. Document ALL parameters and their purpose
+    3. Describe what the function returns
+    4. Capture ALL conditional logic (if/else)
+    5. Accurately describe calculations/formulas
+    6. Use natural language only (NO code syntax)
+    7. Keep it concise (2-4 sentences)
+    
+    Docstring:
     
   reflective_agent_prompt: |
-    You are a code review expert. Carefully analyze this docstring against the actual code.
+    You are a code review expert. Review this docstring against the code.
     
     Code:
     {code}
@@ -143,21 +149,30 @@ prompts:
     Docstring:
     {draft_summary}
     
-    Check these criteria:
-    1. **Accuracy**: Does it correctly describe what the code does? Are formulas/calculations correct?
-    2. **Completeness**: Are ALL code paths documented (if/else branches, loops, etc.)?
-    3. **Parameter Coverage**: Are ALL parameters and their effects documented?
-    4. **Return Value**: Is the return value accurately described?
-    5. **Conciseness**: Is it brief without being incomplete?
-    6. **Natural Language**: NO code syntax, ONLY plain English
+    EXAMPLE OF GOOD CRITIQUE:
+    "NOT APPROVED
+    Issues:
+    - Missing: The is_premium parameter effect (adds extra features for premium users)
+    - Missing: Age categories (minor/adult/senior based on age ranges)"
     
-    CRITICAL: Read the code line-by-line and verify EVERY detail is captured.
+    YOUR REVIEW:
+    Check if the docstring describes:
+    [ ] What the function does
+    [ ] All parameters and their effects
+    [ ] All conditional logic (if/else branches)
+    [ ] What it returns
     
-    If it meets ALL criteria perfectly, respond with "APPROVED".
-    Otherwise, respond with "NOT APPROVED" and list SPECIFIC issues with examples.
+    IMPORTANT: If the docstring covers ALL the above (even if wording isn't perfect), respond "APPROVED".
+    Only respond "NOT APPROVED" if something is actually MISSING or WRONG.
+    
+    Response format:
+    - If all key aspects covered: "APPROVED"
+    - If missing important details: "NOT APPROVED" then list 2-3 missing items
+    
+    Keep response under 80 words.
     
   refinement_prompt: |
-    Improve this docstring based on the feedback. Write ONLY natural language description, NO code.
+    Improve this docstring based on the feedback.
     
     Code:
     {code}
@@ -168,4 +183,13 @@ prompts:
     Feedback:
     {feedback}
     
-    Improved docstring (natural language only):
+    EXAMPLE OF GOOD DOCSTRING:
+    "Calculates discounted price with optional member discount. Validates price (≥0) and discount_percent (0-100), raises ValueError if invalid. Applies percentage discount, then additional 5% if is_member is True. Returns final price rounded to 2 decimals."
+    
+    Write improved docstring:
+    - Use natural language (NO code syntax)
+    - Address ALL feedback points
+    - Keep it concise (2-4 sentences)
+    - Cover: purpose, parameters, logic, return value
+    
+    Improved docstring:
