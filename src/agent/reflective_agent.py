@@ -242,6 +242,13 @@ class ReflectiveAgent:
         Returns:
             Cleaned summary
         """
+        # Remove prompt markers that might leak into output
+        prompt_markers = ['Feedback:', 'Code:', 'Summary:', 'Docstring:', 'Output:', 'Improved docstring:']
+        for marker in prompt_markers:
+            if marker in text:
+                # Take only the part before the marker
+                text = text.split(marker)[0].strip()
+        
         # Remove common code artifacts
         lines = text.split('\n')
         cleaned_lines = []
