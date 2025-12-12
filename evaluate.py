@@ -33,6 +33,10 @@ def main():
                        help='HuggingFace token')
     parser.add_argument('--no_reflective_agent', action='store_true',
                        help='Disable reflective agent')
+    parser.add_argument('--fast_mode', action='store_true',
+                       help='Enable fast mode (greedy decoding, reduced tokens)')
+    parser.add_argument('--max_iterations', type=int, default=None,
+                       help='Override max iterations for reflective agent')
     parser.add_argument('--output', type=str, default='evaluation_results/results.json',
                        help='Output path for results')
     args = parser.parse_args()
@@ -65,6 +69,17 @@ def main():
     print("\n[3/6] Initializing preprocessor...")
     preprocessor = DataPreprocessor(config)
     
+    # Apply fast mode settings if requested
+    if args.fast_mode:
+        print("Fast mode enabled: using greedy decoding and reduced token limits")
+        config['reflective_agent']['fast_mode'] = True
+        config['reflective_agent']['greedy_decoding'] = True
+    
+    # Override max iterations if specified
+    if args.max_iterations is not None:
+        print(f"Overriding max iterations: {args.max_iterations}")
+        config['reflective_agent']['max_iterations_eval'] = args.max_iterations
+    
     # Step 4: Load model
     print("\n[4/6] Loading trained model...")
     model, tokenizer = load_model(
@@ -74,9 +89,9 @@ def main():
         checkpoint_path=args.checkpoint
     )
     
-    # Step 5: Initialize reflective agent
+    # Step 5: Initialize reflective agent with eval mode
     print("\n[5/6] Initializing reflective agent...")
-    reflective_agent = ReflectiveAgent(model, tokenizer, config)
+    reflective_agent = ReflectiveAgent(model, tokenizer, config, eval_mode=True)
     
     # Initialize inference pipeline
     inference_pipeline = InferencePipeline(

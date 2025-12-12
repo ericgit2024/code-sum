@@ -89,13 +89,19 @@ structure:
 # Reflective Agent Configuration - FIXED
 reflective_agent:
   enabled: true  # Re-enabled with fixes
-  max_iterations: 3
+  max_iterations: 3  # For training/inference
+  max_iterations_eval: 1  # For evaluation (faster, 2-3x speedup)
   criteria:
     - "accuracy"      # Does it match what the code does?
     - "completeness"  # Covers main points?
     - "clarity"       # Easy to understand?
   threshold_score: 0.7  # Lowered from 0.8 for easier approval
   temperature: 0.7
+  # Fast mode settings for evaluation
+  fast_mode: false  # Enable for faster evaluation
+  greedy_decoding: false  # Use greedy instead of sampling (30-50% faster)
+  max_tokens_critique: 128  # Reduced from 256 for faster critique
+  max_tokens_refinement: 150  # Reduced from 256 for faster refinement
   
 # Evaluation Configuration
 evaluation:

@@ -10,7 +10,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 class ReflectiveAgent:
     """Agent that critiques and refines code summaries."""
     
-    def __init__(self, model: AutoModelForCausalLM, tokenizer: AutoTokenizer, config: Dict):
+    def __init__(self, model: AutoModelForCausalLM, tokenizer: AutoTokenizer, config: Dict, eval_mode: bool = False):
         """
         Initialize reflective agent.
         
@@ -18,14 +18,28 @@ class ReflectiveAgent:
             model: Language model
             tokenizer: Tokenizer
             config: Configuration dictionary
+            eval_mode: If True, use faster settings for evaluation
         """
         self.model = model
         self.tokenizer = tokenizer
         self.config = config
-        self.max_iterations = config['reflective_agent']['max_iterations']
+        self.eval_mode = eval_mode
+        
+        # Use eval-specific iterations if in eval mode
+        if eval_mode and 'max_iterations_eval' in config['reflective_agent']:
+            self.max_iterations = config['reflective_agent']['max_iterations_eval']
+        else:
+            self.max_iterations = config['reflective_agent']['max_iterations']
+        
         self.threshold_score = config['reflective_agent']['threshold_score']
         self.temperature = config['reflective_agent']['temperature']
         self.criteria = config['reflective_agent']['criteria']
+        
+        # Fast mode settings
+        self.fast_mode = config['reflective_agent'].get('fast_mode', False)
+        self.greedy_decoding = config['reflective_agent'].get('greedy_decoding', False)
+        self.max_tokens_critique = config['reflective_agent'].get('max_tokens_critique', 128)
+        self.max_tokens_refinement = config['reflective_agent'].get('max_tokens_refinement', 150)
         
     def critique_summary(self, code: str, draft_summary: str) -> str:
         """
@@ -44,8 +58,8 @@ class ReflectiveAgent:
             draft_summary=draft_summary
         )
         
-        # Generate critique
-        feedback = self._generate(critique_prompt)
+        # Generate critique with reduced tokens
+        feedback = self._generate(critique_prompt, max_new_tokens=self.max_tokens_critique)
         
         return feedback
     
@@ -68,8 +82,8 @@ class ReflectiveAgent:
             feedback=feedback
         )
         
-        # Generate refined summary
-        refined = self._generate(refinement_prompt)
+        # Generate refined summary with reduced tokens
+        refined = self._generate(refinement_prompt, max_new_tokens=self.max_tokens_refinement)
         
         return refined
     
@@ -181,17 +195,29 @@ class ReflectiveAgent:
             max_length=2048
         ).to(self.model.device)
         
+        # Determine generation parameters based on fast mode
+        if self.fast_mode or self.greedy_decoding:
+            # Greedy decoding for speed
+            gen_kwargs = {
+                'max_new_tokens': max_new_tokens,
+                'do_sample': False,
+                'pad_token_id': self.tokenizer.pad_token_id,
+                'eos_token_id': self.tokenizer.eos_token_id
+            }
+        else:
+            # Sampling for quality
+            gen_kwargs = {
+                'max_new_tokens': max_new_tokens,
+                'temperature': self.temperature,
+                'do_sample': True,
+                'top_p': 0.9,
+                'pad_token_id': self.tokenizer.pad_token_id,
+                'eos_token_id': self.tokenizer.eos_token_id
+            }
+        
         # Generate
         with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                temperature=self.temperature,
-                do_sample=True,
-                top_p=0.9,
-                pad_token_id=self.tokenizer.pad_token_id,
-                eos_token_id=self.tokenizer.eos_token_id
-            )
+            outputs = self.model.generate(**inputs, **gen_kwargs)
         
         # Decode
         generated_text = self.tokenizer.decode(

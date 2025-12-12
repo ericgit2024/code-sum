@@ -133,13 +133,18 @@ class InferencePipeline:
         Returns:
             List of predictions
         """
-        predictions = []
+        import time
         
-        print(f"Generating summaries for {len(test_data)} samples...")
+        predictions = []
+        total_samples = len(test_data)
+        
+        print(f"Generating summaries for {total_samples} samples...")
+        print(f"Reflective agent: {'ENABLED' if use_reflective_agent else 'DISABLED'}")
+        
+        start_time = time.time()
         
         for i, sample in enumerate(test_data):
-            if i % 10 == 0:
-                print(f"Processed {i}/{len(test_data)} samples")
+            sample_start = time.time()
             
             prediction = self.predict_single(
                 sample['code'],
@@ -151,7 +156,25 @@ class InferencePipeline:
                 prediction['reference'] = sample['docstring']
             
             predictions.append(prediction)
+            
+            # Progress reporting every 10 samples
+            if (i + 1) % 10 == 0 or i == 0:
+                elapsed = time.time() - start_time
+                samples_per_sec = (i + 1) / elapsed if elapsed > 0 else 0
+                remaining = total_samples - (i + 1)
+                eta_seconds = remaining / samples_per_sec if samples_per_sec > 0 else 0
+                eta_minutes = eta_seconds / 60
+                
+                print(f"Processed {i + 1}/{total_samples} samples | "
+                      f"{samples_per_sec:.2f} samples/sec | "
+                      f"ETA: {eta_minutes:.1f} min")
         
-        print(f"Summary generation complete: {len(predictions)} samples")
+        total_time = time.time() - start_time
+        avg_time_per_sample = total_time / total_samples if total_samples > 0 else 0
+        
+        print(f"\nSummary generation complete!")
+        print(f"Total samples: {len(predictions)}")
+        print(f"Total time: {total_time / 60:.2f} minutes")
+        print(f"Average time per sample: {avg_time_per_sample:.2f} seconds")
         
         return predictions

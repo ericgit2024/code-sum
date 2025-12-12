@@ -1,0 +1,149 @@
+@startuml Architecture Diagram
+
+!theme plain
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam nodesep 70
+skinparam ranksep 90
+skinparam padding 20
+skinparam arrowThickness 2
+skinparam arrowColor #2C3E50
+skinparam defaultFontSize 11
+
+title Code Summarization System - Architecture
+
+' ============================================
+' DATA LAYER
+' ============================================
+package "Data Layer" as DataLayer #E8F5E9 {
+    component "Dataset Loader" as Loader
+    component "Quality Filter" as QualityFilter
+    component "Data Preprocessor" as Preprocessor
+    
+    Loader -down-> QualityFilter : "raw samples"
+    QualityFilter -down-> Preprocessor : "filtered samples"
+}
+
+' ============================================
+' STRUCTURE EXTRACTION LAYER
+' ============================================
+package "Structure Extraction" as StructureLayer #E3F2FD {
+    component "AST Extractor" as AST
+    component "CFG Extractor" as CFG
+    component "PDG Extractor" as PDG
+    component "Compact Summarizer" as CompactSummarizer
+    
+    note right of CompactSummarizer
+      Extracts:
+      • Function names
+      • Parameters
+      • Called functions
+      • Return types
+      • Control flow stats
+    end note
+}
+
+' ============================================
+' RAG LAYER (Optional)
+' ============================================
+package "RAG System" as RAGLayer #FFF3E0 {
+    component "RAG System" as RAG
+    database "FAISS Index" as FAISSIndex
+    
+    RAG -right-> FAISSIndex : "stores/retrieves"
+    
+    note bottom of RAGLayer
+      Currently disabled
+      (ablation study)
+    end note
+}
+
+' ============================================
+' MODEL LAYER
+' ============================================
+package "Model Layer" as ModelLayer #FCE4EC {
+    component "Model Loader" as ModelLoader
+    component "Gemma 2B + LoRA" as Model
+    component "Trainer" as Trainer
+    component "Inference Engine" as InferenceEngine
+    
+    ModelLoader -down-> Model : "loads with\n4-bit quantization"
+    Model -down-> Trainer : "fine-tunes"
+    Model -down-> InferenceEngine : "generates"
+}
+
+' ============================================
+' AGENT LAYER
+' ============================================
+package "Reflective Agent" as AgentLayer #F3E5F5 {
+    component "Reflective Agent" as Agent
+    
+    note right of Agent
+      Iterative refinement:
+      1. Critique summary
+      2. Check approval
+      3. Refine if needed
+      Max 3 iterations
+    end note
+}
+
+' ============================================
+' EVALUATION LAYER
+' ============================================
+package "Evaluation" as EvalLayer #E0F2F1 {
+    component "Metrics Calculator" as Metrics
+    
+    note right of Metrics
+      Computes:
+      • BLEU-4
+      • ROUGE-L
+      • METEOR
+    end note
+}
+
+' ============================================
+' ENTRY POINTS
+' ============================================
+component "train.py" as TrainScript #FFECB3
+component "evaluate.py" as EvalScript #FFECB3
+component "run_inference.py" as InferenceScript #FFECB3
+
+' ============================================
+' CONNECTIONS - Data Flow
+' ============================================
+
+' Training Pipeline
+TrainScript --> Loader : "1. Load data"
+Preprocessor --> CompactSummarizer : "2. Extract structures"
+Preprocessor --> RAG : "3. Build index\n(optional)"
+Preprocessor --> Trainer : "4. Prepare training data"
+Trainer --> Model : "5. Fine-tune"
+
+' Inference Pipeline
+InferenceScript --> InferenceEngine : "1. Input code"
+InferenceEngine --> CompactSummarizer : "2. Extract structures"
+InferenceEngine --> RAG : "3. Retrieve context\n(optional)"
+InferenceEngine --> Model : "4. Generate summary"
+InferenceEngine --> Agent : "5. Refine summary"
+
+' Evaluation Pipeline
+EvalScript --> InferenceEngine : "1. Generate summaries"
+InferenceEngine --> Metrics : "2. Calculate metrics"
+
+' Structure extraction connections
+CompactSummarizer ..> AST : "uses"
+CompactSummarizer ..> CFG : "uses"
+CompactSummarizer ..> PDG : "uses"
+
+' ============================================
+' LAYOUT HINTS
+' ============================================
+DataLayer -[hidden]down-> StructureLayer
+StructureLayer -[hidden]down-> ModelLayer
+ModelLayer -[hidden]down-> AgentLayer
+AgentLayer -[hidden]down-> EvalLayer
+
+RAGLayer -[hidden]right-> ModelLayer
+
+@enduml
