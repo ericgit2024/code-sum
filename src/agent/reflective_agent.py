@@ -38,8 +38,9 @@ class ReflectiveAgent:
         # Fast mode settings
         self.fast_mode = config['reflective_agent'].get('fast_mode', False)
         self.greedy_decoding = config['reflective_agent'].get('greedy_decoding', False)
-        self.max_tokens_critique = config['reflective_agent'].get('max_tokens_critique', 128)
-        self.max_tokens_refinement = config['reflective_agent'].get('max_tokens_refinement', 150)
+        self.max_tokens_critique = config['reflective_agent'].get('max_tokens_critique', 400)
+        self.max_tokens_refinement = config['reflective_agent'].get('max_tokens_refinement', 512)
+        self.min_tokens_critique = config['reflective_agent'].get('min_tokens_critique', 50)
         
     def critique_summary(self, code: str, draft_summary: str) -> str:
         """
@@ -58,8 +59,12 @@ class ReflectiveAgent:
             draft_summary=draft_summary
         )
         
-        # Generate critique with reduced tokens
-        feedback = self._generate(critique_prompt, max_new_tokens=self.max_tokens_critique)
+        # Generate critique with min tokens to prevent empty output
+        feedback = self._generate(
+            critique_prompt, 
+            max_new_tokens=self.max_tokens_critique,
+            min_new_tokens=self.min_tokens_critique
+        )
         
         return feedback
     
@@ -188,13 +193,14 @@ class ReflectiveAgent:
         print(f"Max iterations ({self.max_iterations}) reached")
         return best_summary, self.max_iterations
     
-    def _generate(self, prompt: str, max_new_tokens: int = 256) -> str:
+    def _generate(self, prompt: str, max_new_tokens: int = 256, min_new_tokens: int = 0) -> str:
         """
         Generate text from prompt.
         
         Args:
             prompt: Input prompt
             max_new_tokens: Maximum tokens to generate
+            min_new_tokens: Minimum tokens to generate
             
         Returns:
             Generated text
@@ -212,6 +218,7 @@ class ReflectiveAgent:
             # Greedy decoding for speed
             gen_kwargs = {
                 'max_new_tokens': max_new_tokens,
+                'min_new_tokens': min_new_tokens,
                 'do_sample': False,
                 'pad_token_id': self.tokenizer.pad_token_id,
                 'eos_token_id': self.tokenizer.eos_token_id
@@ -220,6 +227,7 @@ class ReflectiveAgent:
             # Sampling for quality
             gen_kwargs = {
                 'max_new_tokens': max_new_tokens,
+                'min_new_tokens': min_new_tokens,
                 'temperature': self.temperature,
                 'do_sample': True,
                 'top_p': 0.9,

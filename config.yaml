@@ -100,8 +100,9 @@ reflective_agent:
   # Fast mode settings for evaluation
   fast_mode: false  # Enable for faster evaluation
   greedy_decoding: false  # Use greedy instead of sampling (30-50% faster)
-  max_tokens_critique: 200  # Sufficient for detailed critique
-  max_tokens_refinement: 300  # Sufficient for complete docstrings
+  max_tokens_critique: 400  # Increased to ensure complete critiques
+  max_tokens_refinement: 512  # Increased to prevent truncation
+  min_tokens_critique: 50  # Ensure critique is not empty
   
 # Evaluation Configuration
 evaluation:
