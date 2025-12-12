@@ -93,6 +93,22 @@ class InferencePipeline:
         Returns:
             Cleaned text
         """
+        # Debug: print raw output to help diagnose issues
+        if text.strip():
+            print(f"[DEBUG] Raw LLM output: {repr(text[:200])}")
+        
+        # Extract text from within triple quotes if present
+        if '"""' in text or "'''" in text:
+            # Try to extract content between triple quotes
+            for quote in ['"""', "'''"]:
+                if text.count(quote) >= 2:
+                    parts = text.split(quote)
+                    if len(parts) >= 3:
+                        # Take the content between first pair of triple quotes
+                        text = parts[1].strip()
+                        print(f"[DEBUG] Extracted from quotes: {repr(text[:100])}")
+                        break
+        
         # Remove code blocks
         if '```' in text:
             # Extract text before code block
@@ -109,7 +125,7 @@ class InferencePipeline:
             # Only skip lines that START with code keywords (not just contain them)
             if line.startswith(('def ', 'class ', 'import ', 'from ')):
                 continue
-            # Skip lines that are ONLY triple quotes
+            # Skip standalone triple quotes (already extracted content above)
             if line in ['"""', "'''"]:
                 continue
             cleaned_lines.append(line)
@@ -123,6 +139,8 @@ class InferencePipeline:
         
         # Deduplicate repetitive sentences
         result = self._deduplicate_text(result)
+        
+        print(f"[DEBUG] Final cleaned: {repr(result[:100])}")
         
         return result.strip()
     
