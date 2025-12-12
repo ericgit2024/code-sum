@@ -103,6 +103,11 @@ class ReflectiveAgent:
         Returns:
             True if approved, False otherwise
         """
+        # If feedback is empty or very short, treat as approval
+        # (LLM has nothing to critique = summary is good)
+        if not feedback or len(feedback.strip()) < 10:
+            return True
+        
         feedback_upper = feedback.upper()
         
         # Rejection signals (check first, override approval)

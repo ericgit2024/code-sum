@@ -137,7 +137,7 @@ prompts:
     Docstring:
     
   reflective_agent_prompt: |
-    Review this docstring against the code. Be lenient - approve if it covers the key points.
+    Review this docstring against the code. Approve if it accurately describes what the code does.
     
     Code:
     {code}
@@ -145,16 +145,17 @@ prompts:
     Docstring:
     {draft_summary}
     
-    Does the docstring describe:
-    - What the function does?
-    - All parameters and their effects?
-    - Conditional logic (if/else)?
-    - What it returns?
+    Check if the docstring:
+    1. Describes what the function does
+    2. Mentions all parameters (if any)
+    3. Describes conditional logic (if the code has if/else)
+    4. Describes what it returns (if it returns something)
+    5. Is accurate (no wrong information)
     
-    If YES to all: respond "APPROVED"
-    If NO: respond "NOT APPROVED" and list 1-2 missing items
+    If the docstring covers everything that EXISTS in the code: respond "APPROVED"
+    If something important is MISSING or WRONG: respond "NOT APPROVED - Missing: [what's missing]"
     
-    Keep response under 50 words.
+    Keep response under 40 words.
     
   refinement_prompt: |
     Improve this docstring based on feedback. Write in natural language only.
