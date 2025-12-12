@@ -117,7 +117,7 @@ prompts:
     You are an expert at writing clear, concise Python docstrings. Generate ONLY the docstring text in natural language. Do NOT include code, function definitions, or technical syntax.
     
   instruction_template: |
-    Write a concise docstring for this Python function in natural language.
+    Write a brief docstring for this function in 2-3 sentences.
     
     Function code:
     ```python
@@ -126,13 +126,12 @@ prompts:
     
     {structure_summary}
     
-    Your docstring must:
-    - Describe what THIS specific function does
-    - Mention ALL parameters and their purpose  
-    - Describe ALL conditional logic (if/else branches)
-    - Describe what it returns
-    - Be 2-4 sentences in plain English
-    - NOT include any code syntax
+    Describe:
+    - What it does
+    - Key parameters
+    - What it returns
+    
+    Keep it concise. Use plain English, no code syntax.
     
     Docstring:
     
