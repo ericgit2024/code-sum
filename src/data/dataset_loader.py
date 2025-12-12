@@ -1,11 +1,12 @@
 """
-Dataset loader for CodeSearchNet Python dataset with sampling.
+Dataset loader for CodeSearchNet Python dataset with sampling and quality filtering.
 """
 
 import os
 from datasets import load_dataset
 from typing import Dict, List, Tuple
 import random
+from src.data.quality_filter import QualityFilter
 
 
 class CodeSearchNetLoader:
@@ -65,15 +66,32 @@ class CodeSearchNetLoader:
         # Shuffle the sampled data
         random.shuffle(sampled_data)
         
-        # Create splits
-        train_size = int(len(sampled_data) * self.train_split)
-        val_size = int(len(sampled_data) * self.val_split)
+        # Prepare samples first (convert to standard format)
+        prepared_data = self.prepare_dataset(sampled_data)
         
-        train_data = sampled_data[:train_size]
-        val_data = sampled_data[train_size:train_size + val_size]
-        test_data = sampled_data[train_size + val_size:]
+        # Apply quality filtering if enabled
+        quality_filter_enabled = self.config.get('dataset', {}).get('quality_filter_enabled', True)
+        if quality_filter_enabled:
+            print(f"\nApplying quality filtering...")
+            quality_filter = QualityFilter(self.config.get('quality_filter', {}))
+            prepared_data, filter_stats = quality_filter.filter_dataset(prepared_data, verbose=True)
+            
+            # If we filtered out too many samples, warn user
+            if filter_stats['retention_rate'] < 0.5:
+                print(f"WARNING: Quality filter removed {filter_stats['removed_count']} samples!")
+                print(f"Consider adjusting quality filter thresholds in config.yaml")
+        else:
+            print("\nQuality filtering disabled")
         
-        print(f"Dataset splits created:")
+        # Create splits from filtered data
+        train_size = int(len(prepared_data) * self.train_split)
+        val_size = int(len(prepared_data) * self.val_split)
+        
+        train_data = prepared_data[:train_size]
+        val_data = prepared_data[train_size:train_size + val_size]
+        test_data = prepared_data[train_size + val_size:]
+        
+        print(f"\nFinal dataset splits:")
         print(f"  Train: {len(train_data)} samples")
         print(f"  Validation: {len(val_data)} samples")
         print(f"  Test: {len(test_data)} samples")
@@ -114,19 +132,16 @@ class CodeSearchNetLoader:
 
 def load_codesearchnet_dataset(config: Dict) -> Tuple[List[Dict], List[Dict], List[Dict]]:
     """
-    Convenience function to load and prepare CodeSearchNet dataset.
+    Convenience function to load and prepare CodeSearchNet dataset with quality filtering.
     
     Args:
         config: Configuration dictionary
         
     Returns:
-        Tuple of (train_data, val_data, test_data)
+        Tuple of (train_data, val_data, test_data) - already prepared and filtered
     """
     loader = CodeSearchNetLoader(config)
-    train_raw, val_raw, test_raw = loader.load_and_sample()
-    
-    train_data = loader.prepare_dataset(train_raw)
-    val_data = loader.prepare_dataset(val_raw)
-    test_data = loader.prepare_dataset(test_raw)
+    train_data, val_data, test_data = loader.load_and_sample()
     
     return train_data, val_data, test_data
+

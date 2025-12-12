@@ -9,6 +9,18 @@ dataset:
   val_split: 0.15    # 750 val
   test_split: 0.15   # 750 test
   cache_dir: "./data/cache"
+  quality_filter_enabled: true  # Enable quality filtering
+  
+# Quality Filter Configuration
+quality_filter:
+  min_code_length: 20        # Minimum code characters
+  max_code_length: 2000      # Maximum code characters
+  min_summary_length: 10     # Minimum summary characters
+  max_summary_length: 500    # Maximum summary characters
+  min_summary_words: 3       # Minimum words in summary
+  max_summary_words: 100     # Maximum words in summary
+  min_code_lines: 2          # Minimum code lines
+  max_code_lines: 100        # Maximum code lines
   
 # Model Configuration
 model:
