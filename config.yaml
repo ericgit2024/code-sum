@@ -117,7 +117,7 @@ prompts:
     You are an expert at writing clear, concise Python docstrings. Generate ONLY the docstring text in natural language. Do NOT include code, function definitions, or technical syntax.
     
   instruction_template: |
-    Write a clear, comprehensive docstring for this Python function.
+    Write a concise docstring for this Python function in natural language.
     
     Function code:
     ```python
@@ -126,22 +126,18 @@ prompts:
     
     {structure_summary}
     
-    EXAMPLE (for a different function):
-    "Validates user credentials and returns authentication token. Checks username exists in database and password hash matches. If validation fails, raises AuthenticationError. If successful, generates JWT token with 24-hour expiration and returns it."
-    
-    Requirements:
-    1. Describe what THIS function does (not the example)
-    2. Document ALL parameters and their purpose
-    3. Describe what it returns
-    4. Capture ALL conditional logic (if/else)
-    5. Accurately describe calculations/formulas
-    6. Use natural language only (NO code syntax)
-    7. Keep it concise (2-4 sentences)
+    Your docstring must:
+    - Describe what THIS specific function does
+    - Mention ALL parameters and their purpose  
+    - Describe ALL conditional logic (if/else branches)
+    - Describe what it returns
+    - Be 2-4 sentences in plain English
+    - NOT include any code syntax
     
     Docstring:
     
   reflective_agent_prompt: |
-    You are a code review expert. Review this docstring against the code.
+    Review this docstring against the code. Be lenient - approve if it covers the key points.
     
     Code:
     {code}
@@ -149,30 +145,19 @@ prompts:
     Docstring:
     {draft_summary}
     
-    EXAMPLE OF GOOD CRITIQUE:
-    "NOT APPROVED
-    Issues:
-    - Missing: The is_premium parameter effect (adds extra features for premium users)
-    - Missing: Age categories (minor/adult/senior based on age ranges)"
+    Does the docstring describe:
+    - What the function does?
+    - All parameters and their effects?
+    - Conditional logic (if/else)?
+    - What it returns?
     
-    YOUR REVIEW:
-    Check if the docstring describes:
-    [ ] What the function does
-    [ ] All parameters and their effects
-    [ ] All conditional logic (if/else branches)
-    [ ] What it returns
+    If YES to all: respond "APPROVED"
+    If NO: respond "NOT APPROVED" and list 1-2 missing items
     
-    IMPORTANT: If the docstring covers ALL the above (even if wording isn't perfect), respond "APPROVED".
-    Only respond "NOT APPROVED" if something is actually MISSING or WRONG.
-    
-    Response format:
-    - If all key aspects covered: "APPROVED"
-    - If missing important details: "NOT APPROVED" then list 2-3 missing items
-    
-    Keep response under 80 words.
+    Keep response under 50 words.
     
   refinement_prompt: |
-    Improve this docstring based on the feedback.
+    Improve this docstring based on feedback. Write in natural language only.
     
     Code:
     {code}
@@ -183,13 +168,4 @@ prompts:
     Feedback:
     {feedback}
     
-    EXAMPLE OF GOOD DOCSTRING:
-    "Calculates discounted price with optional member discount. Validates price (≥0) and discount_percent (0-100), raises ValueError if invalid. Applies percentage discount, then additional 5% if is_member is True. Returns final price rounded to 2 decimals."
-    
-    Write improved docstring:
-    - Use natural language (NO code syntax)
-    - Address ALL feedback points
-    - Keep it concise (2-4 sentences)
-    - Cover: purpose, parameters, logic, return value
-    
-    Improved docstring:
+    Write improved docstring (2-4 sentences, plain English, address feedback):

@@ -38,9 +38,8 @@ class ReflectiveAgent:
         # Fast mode settings
         self.fast_mode = config['reflective_agent'].get('fast_mode', False)
         self.greedy_decoding = config['reflective_agent'].get('greedy_decoding', False)
-        self.max_tokens_critique = config['reflective_agent'].get('max_tokens_critique', 400)
-        self.max_tokens_refinement = config['reflective_agent'].get('max_tokens_refinement', 512)
-        self.min_tokens_critique = config['reflective_agent'].get('min_tokens_critique', 50)
+        self.max_tokens_critique = config['reflective_agent'].get('max_tokens_critique', 250)
+        self.max_tokens_refinement = config['reflective_agent'].get('max_tokens_refinement', 300)
         
     def critique_summary(self, code: str, draft_summary: str) -> str:
         """
@@ -59,11 +58,10 @@ class ReflectiveAgent:
             draft_summary=draft_summary
         )
         
-        # Generate critique with min tokens to prevent empty output
+        # Generate critique
         feedback = self._generate(
             critique_prompt, 
-            max_new_tokens=self.max_tokens_critique,
-            min_new_tokens=self.min_tokens_critique
+            max_new_tokens=self.max_tokens_critique
         )
         
         return feedback
