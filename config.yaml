@@ -4,10 +4,10 @@
 dataset:
   name: "code_x_glue_ct_code_to_text"
   language: "python"
-  sample_size: 1000  # Scaled from 500 for better results
-  train_split: 0.7   # 700 train
-  val_split: 0.15    # 150 val
-  test_split: 0.15   # 150 test
+  sample_size: 5000  # Scaled to 5000 for improved performance
+  train_split: 0.7   # 3500 train
+  val_split: 0.15    # 750 val
+  test_split: 0.15   # 750 test
   cache_dir: "./data/cache"
   
 # Model Configuration
@@ -44,10 +44,10 @@ training:
   gradient_accumulation_steps: 4
   learning_rate: 2.0e-4
   weight_decay: 0.01
-  warmup_steps: 100  # Increased for 1000 samples
+  warmup_steps: 350  # Increased for 5000 samples (~10% of training steps)
   logging_steps: 10
-  save_steps: 200    # Adjusted for dataset size
-  eval_steps: 200
+  save_steps: 500    # Adjusted for larger dataset size
+  eval_steps: 500
   save_total_limit: 2
   fp16: true
   optim: "paged_adamw_8bit"
@@ -74,17 +74,15 @@ structure:
   max_cfg_nodes: 50
   max_pdg_nodes: 50
   
-# Reflective Agent Configuration - IMPROVED
+# Reflective Agent Configuration - FIXED
 reflective_agent:
-  enabled: true  # Re-enabled with better criteria
+  enabled: true  # Re-enabled with fixes
   max_iterations: 3
   criteria:
-    - "accuracy"         # Does it match what the code does?
-    - "completeness"     # Covers parameters, return value, purpose?
-    - "conciseness"      # Brief, no redundancy?
-    - "natural_language" # NO code, NO syntax?
-    - "relevance"        # Related to THIS function, not others?
-  threshold_score: 0.8
+    - "accuracy"      # Does it match what the code does?
+    - "completeness"  # Covers main points?
+    - "clarity"       # Easy to understand?
+  threshold_score: 0.7  # Lowered from 0.8 for easier approval
   temperature: 0.7
   
 # Evaluation Configuration

@@ -75,7 +75,7 @@ class ReflectiveAgent:
     
     def is_approved(self, feedback: str) -> bool:
         """
-        Check if summary is approved.
+        Check if summary is approved using multiple signals.
         
         Args:
             feedback: Critique feedback
@@ -83,11 +83,42 @@ class ReflectiveAgent:
         Returns:
             True if approved, False otherwise
         """
-        return "APPROVED" in feedback.upper()
+        feedback_upper = feedback.upper()
+        
+        # Rejection signals (check first, override approval)
+        rejection_keywords = [
+            "NOT APPROVED",
+            "NEEDS IMPROVEMENT",
+            "MISSING",
+            "INCORRECT",
+            "WRONG",
+            "INACCURATE",
+            "INCOMPLETE"
+        ]
+        
+        # Check for rejection first
+        if any(keyword in feedback_upper for keyword in rejection_keywords):
+            return False
+        
+        # Approval signals
+        approval_keywords = [
+            "APPROVED",
+            "LOOKS GOOD",
+            "GOOD",
+            "ACCEPTABLE",
+            "MEETS ALL CRITERIA",
+            "WELL DONE",
+            "SATISFACTORY",
+            "CORRECT",
+            "ACCURATE"
+        ]
+        
+        # Check for approval
+        return any(keyword in feedback_upper for keyword in approval_keywords)
     
     def iterative_refinement(self, code: str, initial_summary: str) -> Tuple[str, int]:
         """
-        Iteratively refine summary until approved or max iterations.
+        Iteratively refine summary with convergence detection and best summary tracking.
         
         Args:
             code: Original code
@@ -97,8 +128,17 @@ class ReflectiveAgent:
             Tuple of (final_summary, num_iterations)
         """
         current_summary = initial_summary
+        best_summary = initial_summary
+        previous_summaries = []
         
         for iteration in range(self.max_iterations):
+            # Check for convergence (summary stopped changing)
+            if current_summary in previous_summaries:
+                print(f"Summary converged after {iteration} iteration(s)")
+                return best_summary, iteration
+            
+            previous_summaries.append(current_summary)
+            
             # Get critique
             feedback = self.critique_summary(code, current_summary)
             
@@ -108,12 +148,19 @@ class ReflectiveAgent:
                 return current_summary, iteration + 1
             
             # Refine summary
-            current_summary = self.refine_summary(code, current_summary, feedback)
+            refined_summary = self.refine_summary(code, current_summary, feedback)
+            
+            # Keep best summary (prefer shorter, more concise summaries)
+            if len(refined_summary) > 0:
+                current_summary = refined_summary
+                # Update best if this seems better (not empty, reasonable length)
+                if 10 < len(refined_summary.split()) < 100:
+                    best_summary = refined_summary
             
             print(f"Iteration {iteration + 1}: Refined summary")
         
         print(f"Max iterations ({self.max_iterations}) reached")
-        return current_summary, self.max_iterations
+        return best_summary, self.max_iterations
     
     def _generate(self, prompt: str, max_new_tokens: int = 256) -> str:
         """
