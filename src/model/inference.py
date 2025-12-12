@@ -98,7 +98,7 @@ class InferencePipeline:
             # Extract text before code block
             text = text.split('```')[0].strip()
         
-        # Remove lines that look like code
+        # Remove lines that look like code (but be less aggressive)
         lines = text.split('\n')
         cleaned_lines = []
         
@@ -106,8 +106,11 @@ class InferencePipeline:
             line = line.strip()
             if not line:
                 continue
-            # Skip lines that are clearly code
-            if any(marker in line for marker in ['def ', 'class ', 'import ', 'from ', 'self.', '"""']):
+            # Only skip lines that START with code keywords (not just contain them)
+            if line.startswith(('def ', 'class ', 'import ', 'from ')):
+                continue
+            # Skip lines that are ONLY triple quotes
+            if line in ['"""', "'''"]:
                 continue
             cleaned_lines.append(line)
         
@@ -118,7 +121,44 @@ class InferencePipeline:
         while '  ' in result:
             result = result.replace('  ', ' ')
         
+        # Deduplicate repetitive sentences
+        result = self._deduplicate_text(result)
+        
         return result.strip()
+    
+    def _deduplicate_text(self, text: str) -> str:
+        """
+        Remove repetitive sentences from text.
+        
+        Args:
+            text: Text that may contain repetition
+            
+        Returns:
+            Deduplicated text
+        """
+        # Split into sentences (simple approach)
+        sentences = [s.strip() for s in text.split('.') if s.strip()]
+        
+        if not sentences:
+            return text
+        
+        # Keep only unique sentences in order
+        seen = set()
+        unique_sentences = []
+        
+        for sentence in sentences:
+            # Normalize for comparison (lowercase, no extra spaces)
+            normalized = ' '.join(sentence.lower().split())
+            if normalized not in seen:
+                seen.add(normalized)
+                unique_sentences.append(sentence)
+        
+        # Rejoin with periods
+        result = '. '.join(unique_sentences)
+        if result and not result.endswith('.'):
+            result += '.'
+        
+        return result
     
     def predict_single(self, code: str, use_reflective_agent: bool = True) -> Dict:
         """

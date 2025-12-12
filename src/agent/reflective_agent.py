@@ -249,7 +249,7 @@ class ReflectiveAgent:
                 # Take only the part before the marker
                 text = text.split(marker)[0].strip()
         
-        # Remove common code artifacts
+        # Remove common code artifacts (but be less aggressive)
         lines = text.split('\n')
         cleaned_lines = []
         
@@ -258,8 +258,11 @@ class ReflectiveAgent:
             # Skip empty lines
             if not line:
                 continue
-            # Skip lines that look like code (contain common Python keywords/symbols)
-            if any(marker in line for marker in ['def ', 'class ', 'import ', 'from ', '```', 'python']):
+            # Only skip lines that START with code keywords
+            if line.startswith(('def ', 'class ', 'import ', 'from ')):
+                continue
+            # Skip lines that are ONLY triple quotes
+            if line in ['"""', "'''"]:
                 continue
             # Skip lines that are just config keys or fragments
             if line.endswith("']") or line.endswith('['):
@@ -273,7 +276,44 @@ class ReflectiveAgent:
         while '  ' in cleaned:
             cleaned = cleaned.replace('  ', ' ')
         
+        # Deduplicate repetitive sentences
+        cleaned = self._deduplicate_sentences(cleaned)
+        
         return cleaned.strip()
+    
+    def _deduplicate_sentences(self, text: str) -> str:
+        """
+        Remove repetitive sentences from text.
+        
+        Args:
+            text: Text that may contain repetition
+            
+        Returns:
+            Deduplicated text
+        """
+        # Split into sentences
+        sentences = [s.strip() for s in text.split('.') if s.strip()]
+        
+        if not sentences:
+            return text
+        
+        # Keep only unique sentences in order
+        seen = set()
+        unique_sentences = []
+        
+        for sentence in sentences:
+            # Normalize for comparison
+            normalized = ' '.join(sentence.lower().split())
+            if normalized not in seen:
+                seen.add(normalized)
+                unique_sentences.append(sentence)
+        
+        # Rejoin with periods
+        result = '. '.join(unique_sentences)
+        if result and not result.endswith('.'):
+            result += '.'
+        
+        return result
     
     def _is_valid_summary(self, summary: str) -> bool:
         """
