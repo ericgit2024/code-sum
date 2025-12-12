@@ -41,6 +41,26 @@ class ReflectiveAgent:
         self.max_tokens_critique = config['reflective_agent'].get('max_tokens_critique', 250)
         self.max_tokens_refinement = config['reflective_agent'].get('max_tokens_refinement', 300)
         
+        # Scoring system settings
+        self.scoring_enabled = config['reflective_agent'].get('scoring', {}).get('enabled', False)
+        self.score_weights = config['reflective_agent'].get('scoring', {}).get('weights', {
+            'accuracy': 0.35,
+            'completeness': 0.30,
+            'naturalness': 0.20,
+            'conciseness': 0.15
+        })
+        self.approval_threshold = config['reflective_agent'].get('scoring', {}).get('approval_threshold', 0.75)
+        self.early_stop_threshold = config['reflective_agent'].get('scoring', {}).get('early_stop_threshold', 0.90)
+        self.min_improvement = config['reflective_agent'].get('scoring', {}).get('min_improvement', 0.05)
+        
+        # Adaptive iteration settings
+        self.adaptive_enabled = config['reflective_agent'].get('adaptive_iterations', {}).get('enabled', False)
+        self.complexity_thresholds = config['reflective_agent'].get('adaptive_iterations', {}).get('complexity_thresholds', {
+            'simple': 1,
+            'moderate': 2,
+            'complex': 3
+        })
+        
     def critique_summary(self, code: str, draft_summary: str) -> str:
         """
         Generate critique of draft summary.
@@ -141,36 +161,90 @@ class ReflectiveAgent:
         # Check for approval
         return any(keyword in feedback_upper for keyword in approval_keywords)
     
-    def iterative_refinement(self, code: str, initial_summary: str) -> Tuple[str, int]:
+    def iterative_refinement(self, code: str, initial_summary: str) -> Tuple[str, int, Dict]:
         """
-        Iteratively refine summary with convergence detection and best summary tracking.
+        Iteratively refine summary with scoring and adaptive iterations.
         
         Args:
             code: Original code
             initial_summary: Initial draft summary
             
         Returns:
-            Tuple of (final_summary, num_iterations)
+            Tuple of (final_summary, num_iterations, metadata)
         """
         current_summary = initial_summary
         best_summary = initial_summary
         previous_summaries = []
         
-        for iteration in range(self.max_iterations):
+        # Assess code complexity for adaptive iterations
+        complexity_info = {'cyclomatic_complexity': 0, 'optimal_iterations': self.max_iterations}
+        if self.adaptive_enabled:
+            complexity_info = self._assess_code_complexity(code)
+            max_iterations = complexity_info['optimal_iterations']
+            print(f"[ADAPTIVE] Code complexity: {complexity_info['cyclomatic_complexity']}, "
+                  f"using {max_iterations} max iterations")
+        else:
+            max_iterations = self.max_iterations
+        
+        # Track scores across iterations
+        scores_history = []
+        previous_score = 0.0
+        
+        for iteration in range(max_iterations):
             # Get critique FIRST
             feedback = self.critique_summary(code, current_summary)
             
-            # Debug output
-            print(f"\n[DEBUG] Iteration {iteration + 1} Critique:")
-            print(f"  {feedback[:300]}")
-            
-            # Check if approved
-            is_approved = self.is_approved(feedback)
-            print(f"[DEBUG] Approved: {is_approved}")
+            # Extract scores if scoring is enabled
+            if self.scoring_enabled:
+                scores = self._extract_scores(feedback)
+                weighted_score = self._calculate_weighted_score(scores)
+                scores_history.append({
+                    'iteration': iteration + 1,
+                    'scores': scores,
+                    'weighted_score': weighted_score
+                })
+                
+                # Debug output with scores
+                print(f"\n[SCORING] Iteration {iteration + 1}:")
+                print(f"  Accuracy: {scores.get('accuracy', 0):.2f} | "
+                      f"Completeness: {scores.get('completeness', 0):.2f} | "
+                      f"Naturalness: {scores.get('naturalness', 0):.2f} | "
+                      f"Conciseness: {scores.get('conciseness', 0):.2f}")
+                print(f"  Weighted Score: {weighted_score:.2f}")
+                
+                # Check for early stopping
+                should_stop, reason = self._should_stop_early(weighted_score, previous_score, iteration)
+                if should_stop:
+                    print(f"[EARLY STOP] {reason}")
+                    metadata = {
+                        'scores_history': scores_history,
+                        'final_score': weighted_score,
+                        'complexity': complexity_info,
+                        'stop_reason': reason
+                    }
+                    return current_summary, iteration + 1, metadata
+                
+                # Check if approved based on score
+                is_approved = weighted_score >= self.approval_threshold
+                print(f"  Approved: {is_approved} (threshold: {self.approval_threshold})")
+                
+                previous_score = weighted_score
+            else:
+                # Fallback to keyword-based approval
+                print(f"\n[DEBUG] Iteration {iteration + 1} Critique:")
+                print(f"  {feedback[:300]}")
+                is_approved = self.is_approved(feedback)
+                print(f"[DEBUG] Approved: {is_approved}")
             
             if is_approved:
                 print(f"Summary approved after {iteration + 1} iteration(s)")
-                return current_summary, iteration + 1
+                metadata = {
+                    'scores_history': scores_history,
+                    'final_score': weighted_score if self.scoring_enabled else None,
+                    'complexity': complexity_info,
+                    'stop_reason': 'approved'
+                }
+                return current_summary, iteration + 1, metadata
             
             # Refine summary
             refined_summary = self.refine_summary(code, current_summary, feedback)
@@ -178,7 +252,13 @@ class ReflectiveAgent:
             # Check for convergence AFTER refinement
             if refined_summary in previous_summaries:
                 print(f"Summary converged after {iteration + 1} iteration(s)")
-                return best_summary, iteration + 1
+                metadata = {
+                    'scores_history': scores_history,
+                    'final_score': weighted_score if self.scoring_enabled else None,
+                    'complexity': complexity_info,
+                    'stop_reason': 'converged'
+                }
+                return best_summary, iteration + 1, metadata
             
             previous_summaries.append(current_summary)
             
@@ -193,8 +273,14 @@ class ReflectiveAgent:
             
             print(f"Iteration {iteration + 1}: Refined summary")
         
-        print(f"Max iterations ({self.max_iterations}) reached")
-        return best_summary, self.max_iterations
+        print(f"Max iterations ({max_iterations}) reached")
+        metadata = {
+            'scores_history': scores_history,
+            'final_score': weighted_score if self.scoring_enabled else None,
+            'complexity': complexity_info,
+            'stop_reason': 'max_iterations'
+        }
+        return best_summary, max_iterations, metadata
     
     def _generate(self, prompt: str, max_new_tokens: int = 256, min_new_tokens: int = 0) -> str:
         """
@@ -388,3 +474,125 @@ class ReflectiveAgent:
         best_distance = abs(best_words - 35)
         
         return new_distance < best_distance
+    
+    def _extract_scores(self, critique: str) -> Dict[str, float]:
+        """
+        Extract numerical scores from critique text.
+        
+        Args:
+            critique: Critique feedback with scores
+            
+        Returns:
+            Dictionary of criterion scores (0.0-1.0)
+        """
+        import re
+        
+        scores = {}
+        
+        # Try to extract scores for each criterion
+        for criterion in ['accuracy', 'completeness', 'naturalness', 'conciseness']:
+            # Look for patterns like "Accuracy: 0.8" or "Accuracy: [0.8]"
+            pattern = rf'{criterion}\s*:\s*\[?([0-1]?\.?\d+)\]?'
+            match = re.search(pattern, critique, re.IGNORECASE)
+            
+            if match:
+                try:
+                    score = float(match.group(1))
+                    # Clamp to [0, 1]
+                    scores[criterion] = max(0.0, min(1.0, score))
+                except ValueError:
+                    scores[criterion] = 0.5  # Default if parsing fails
+            else:
+                # Default to 0.5 if not found
+                scores[criterion] = 0.5
+        
+        return scores
+    
+    def _calculate_weighted_score(self, scores: Dict[str, float]) -> float:
+        """
+        Calculate weighted aggregate score.
+        
+        Args:
+            scores: Individual criterion scores
+            
+        Returns:
+            Weighted score (0.0-1.0)
+        """
+        weighted_sum = 0.0
+        total_weight = 0.0
+        
+        for criterion, weight in self.score_weights.items():
+            if criterion in scores:
+                weighted_sum += scores[criterion] * weight
+                total_weight += weight
+        
+        # Normalize by total weight
+        if total_weight > 0:
+            return weighted_sum / total_weight
+        else:
+            return 0.5  # Default if no weights
+    
+    def _assess_code_complexity(self, code: str) -> Dict[str, any]:
+        """
+        Assess code complexity to determine optimal iteration count.
+        
+        Args:
+            code: Source code to analyze
+            
+        Returns:
+            Dictionary with complexity metrics
+        """
+        import ast
+        
+        try:
+            tree = ast.parse(code)
+        except:
+            # If parsing fails, assume moderate complexity
+            return {'cyclomatic_complexity': 5, 'optimal_iterations': 2}
+        
+        # Calculate cyclomatic complexity (simplified)
+        complexity = 1  # Base complexity
+        
+        for node in ast.walk(tree):
+            # Each decision point adds to complexity
+            if isinstance(node, (ast.If, ast.While, ast.For, ast.ExceptHandler)):
+                complexity += 1
+            elif isinstance(node, ast.BoolOp):
+                complexity += len(node.values) - 1
+        
+        # Determine optimal iterations based on complexity
+        if complexity <= 3:
+            optimal_iterations = self.complexity_thresholds.get('simple', 1)
+        elif complexity <= 8:
+            optimal_iterations = self.complexity_thresholds.get('moderate', 2)
+        else:
+            optimal_iterations = self.complexity_thresholds.get('complex', 3)
+        
+        return {
+            'cyclomatic_complexity': complexity,
+            'optimal_iterations': optimal_iterations
+        }
+    
+    def _should_stop_early(self, current_score: float, previous_score: float, iteration: int) -> Tuple[bool, str]:
+        """
+        Determine if iteration should stop early.
+        
+        Args:
+            current_score: Current weighted score
+            previous_score: Previous weighted score
+            iteration: Current iteration number
+            
+        Returns:
+            Tuple of (should_stop, reason)
+        """
+        # Stop if score is excellent
+        if current_score >= self.early_stop_threshold:
+            return True, f"Excellent score achieved ({current_score:.2f})"
+        
+        # Stop if improvement is minimal (after first iteration)
+        if iteration > 0:
+            improvement = current_score - previous_score
+            if improvement < self.min_improvement:
+                return True, f"Minimal improvement ({improvement:.3f})"
+        
+        return False, ""

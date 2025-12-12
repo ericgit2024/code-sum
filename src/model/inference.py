@@ -270,14 +270,23 @@ class InferencePipeline:
         
         # Apply reflective agent if enabled
         if use_reflective_agent:
-            final_summary, iterations = self.reflective_agent.iterative_refinement(
+            final_summary, iterations, metadata = self.reflective_agent.iterative_refinement(
                 code, initial_summary
             )
+            
+            # Calculate improvement if scoring is enabled
+            improvement = None
+            if metadata.get('scores_history'):
+                initial_score = metadata['scores_history'][0]['weighted_score'] if metadata['scores_history'] else 0
+                final_score = metadata.get('final_score', 0)
+                improvement = final_score - initial_score
         else:
             final_summary = initial_summary
             iterations = 0
+            metadata = {}
+            improvement = None
         
-        return {
+        result = {
             'code': code,
             'initial_summary': initial_summary,
             'final_summary': final_summary,
@@ -285,6 +294,16 @@ class InferencePipeline:
             'structures': structures,
             'rag_examples': len(retrieved)
         }
+        
+        # Add scoring metadata if available
+        if metadata:
+            result['scores_history'] = metadata.get('scores_history', [])
+            result['final_score'] = metadata.get('final_score')
+            result['complexity'] = metadata.get('complexity', {})
+            result['stop_reason'] = metadata.get('stop_reason')
+            result['improvement'] = improvement
+        
+        return result
     
     def predict_batch(self, test_data: List[Dict], 
                      use_reflective_agent: bool = True) -> List[Dict]:

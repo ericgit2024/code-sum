@@ -86,15 +86,16 @@ structure:
   max_cfg_nodes: 50
   max_pdg_nodes: 50
   
-# Reflective Agent Configuration - FIXED
+# Reflective Agent Configuration - ENHANCED with Scoring
 reflective_agent:
   enabled: true  # Re-enabled with fixes
-  max_iterations: 3  # For training/inference
+  max_iterations: 3  # For training/inference (base value, adjusted by complexity)
   max_iterations_eval: 1  # For evaluation (faster, 2-3x speedup)
   criteria:
     - "accuracy"      # Does it match what the code does?
     - "completeness"  # Covers main points?
-    - "clarity"       # Easy to understand?
+    - "naturalness"   # Plain English, no code syntax?
+    - "conciseness"   # Clear and concise?
   threshold_score: 0.7  # Lowered from 0.8 for easier approval
   temperature: 0.7
   # Fast mode settings for evaluation
@@ -102,6 +103,26 @@ reflective_agent:
   greedy_decoding: false  # Use greedy instead of sampling (30-50% faster)
   max_tokens_critique: 250  # Moderate limit with structured prompt
   max_tokens_refinement: 300  # Enough for complete docstrings
+  
+  # Multi-Criteria Scoring System
+  scoring:
+    enabled: true  # Enable score-based evaluation
+    weights:
+      accuracy: 0.35      # Most important - correctness
+      completeness: 0.30  # Second - covers all aspects
+      naturalness: 0.20   # Third - readable prose
+      conciseness: 0.15   # Fourth - not too verbose
+    approval_threshold: 0.75    # Minimum weighted score to approve
+    early_stop_threshold: 0.90  # Stop if score exceeds this
+    min_improvement: 0.05       # Stop if improvement less than this
+  
+  # Adaptive Iteration Strategy
+  adaptive_iterations:
+    enabled: true  # Enable complexity-based iteration adjustment
+    complexity_thresholds:
+      simple: 1      # Functions with cyclomatic complexity <= 3
+      moderate: 2    # Functions with cyclomatic complexity 4-8
+      complex: 3     # Functions with cyclomatic complexity > 8
   
 # Evaluation Configuration
 evaluation:
@@ -141,7 +162,7 @@ prompts:
     Explanation:
     
   reflective_agent_prompt: |
-    Review this docstring against the code. Approve if it accurately describes what the code does.
+    Review this docstring against the code. Rate it on each criterion with a score from 0.0 to 1.0.
     
     Code:
     {code}
@@ -149,17 +170,15 @@ prompts:
     Docstring:
     {draft_summary}
     
-    Check if the docstring:
-    1. Describes what the function does
-    2. Mentions all parameters (if any)
-    3. Describes conditional logic (if the code has if/else)
-    4. Describes what it returns (if it returns something)
-    5. Is accurate (no wrong information)
+    Rate each criterion (0.0 = poor, 1.0 = excellent):
     
-    If the docstring covers everything that EXISTS in the code: respond "APPROVED"
-    If something important is MISSING or WRONG: respond "NOT APPROVED - Missing: [what's missing]"
+    Accuracy: [score] - Does it correctly describe what the code actually does? No hallucinations?
+    Completeness: [score] - Covers parameters (if any), return value (if any), and key logic (if/else, loops)?
+    Naturalness: [score] - Written in plain English? No code syntax like if/else, ==, or function calls?
+    Conciseness: [score] - Clear and to the point? Not overly verbose or repetitive?
     
-    Keep response under 40 words.
+    Overall Decision: APPROVED or NOT APPROVED
+    If NOT APPROVED, briefly explain what needs improvement (1 sentence).
     
   refinement_prompt: |
     Improve this docstring based on feedback. Write in natural language only.
