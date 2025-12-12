@@ -81,7 +81,64 @@ class InferencePipeline:
         # Clean the summary to remove code artifacts
         summary = self._clean_generated_text(summary)
         
+        # Convert code-like syntax to natural language
+        summary = self._convert_to_natural_language(summary)
+        
         return summary
+    
+    def _convert_to_natural_language(self, text: str) -> str:
+        """
+        Convert code-like syntax to natural language.
+        
+        Args:
+            text: Text that may contain code syntax
+            
+        Returns:
+            Natural language version
+        """
+        import re
+        
+        # Remove code operators and syntax
+        # Replace "if X:" with "If X,"
+        text = re.sub(r'\bif\s+([^:]+):', r'If \1,', text)
+        text = re.sub(r'\belse:', 'otherwise', text)
+        text = re.sub(r'\belif\s+([^:]+):', r'if \1,', text)
+        
+        # Remove assignment operators (=)
+        text = re.sub(r'\s*=\s*', ' is ', text)
+        
+        # Remove function call parentheses for common functions
+        text = re.sub(r'raise\s+(\w+)\((.*?)\)', r'raises \1 with \2', text)
+        text = re.sub(r'ValueError\("([^"]+)"\)', r'error: \1', text)
+        text = re.sub(r'round\(([^,]+),\s*(\d+)\)', r'\1 rounded to \2 decimals', text)
+        
+        # Remove quotes around strings
+        text = re.sub(r'"([^"]+)"', r'\1', text)
+        text = re.sub(r"'([^']+)'", r'\1', text)
+        
+        # Replace comparison operators
+        text = text.replace('<=', 'less than or equal to')
+        text = text.replace('>=', 'greater than or equal to')
+        text = text.replace('==', 'equals')
+        text = text.replace('!=', 'not equal to')
+        text = text.replace('<', 'less than')
+        text = text.replace('>', 'greater than')
+        
+        # Replace boolean operators
+        text = text.replace(' and ', ' and ')
+        text = text.replace(' or ', ' or ')
+        text = text.replace(' not ', ' not ')
+        
+        # Remove list brackets for simple lists
+        text = re.sub(r'\[([^\]]+)\]', r'\1', text)
+        
+        # Clean up multiple spaces
+        text = re.sub(r'\s+', ' ', text)
+        
+        # Remove bullet points at start
+        text = re.sub(r'^\s*[-•]\s*', '', text)
+        
+        return text.strip()
     
     def _clean_generated_text(self, text: str) -> str:
         """
