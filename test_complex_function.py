@@ -1,17 +1,9 @@
-"""
-Complex function to test the summarization model's capabilities.
-"""
-
 def process_user_data(user_id: int, 
                      data: dict, 
                      options: dict = None,
                      validate: bool = True,
                      transform: bool = True,
                      save_to_db: bool = True) -> dict:
-    """
-    This is the function we want to summarize.
-    The model should generate a docstring for this.
-    """
     # Initialize result dictionary
     result = {
         'user_id': user_id,
@@ -106,7 +98,6 @@ def process_user_data(user_id: int,
             for attempt in range(max_retries):
                 try:
                     # Simulate DB save operation
-                    # In real code, this would be: db.users.update_one(...)
                     cache_key = f"user_{user_id}_data"
                     
                     if options.get('cache_enabled'):
