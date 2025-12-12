@@ -126,13 +126,13 @@ prompts:
     
     {structure_summary}
     
-    EXAMPLE FORMAT:
-    "Calculates X by doing Y. Validates parameters (conditions). If condition A, does B; otherwise does C. Returns D."
+    EXAMPLE (for a different function):
+    "Validates user credentials and returns authentication token. Checks username exists in database and password hash matches. If validation fails, raises AuthenticationError. If successful, generates JWT token with 24-hour expiration and returns it."
     
     Requirements:
-    1. Describe what the function does
+    1. Describe what THIS function does (not the example)
     2. Document ALL parameters and their purpose
-    3. Describe what the function returns
+    3. Describe what it returns
     4. Capture ALL conditional logic (if/else)
     5. Accurately describe calculations/formulas
     6. Use natural language only (NO code syntax)
