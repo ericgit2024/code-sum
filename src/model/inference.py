@@ -71,13 +71,54 @@ class InferencePipeline:
             skip_special_tokens=True
         )
         
-        # Extract summary (after "Summary:" marker)
-        if "Summary:" in generated_text:
-            summary = generated_text.split("Summary:")[-1].strip()
-        else:
-            summary = generated_text.strip()
+        # Extract summary (after "Summary:" or "Docstring:" marker)
+        summary = generated_text.strip()
+        for marker in ["Summary:", "Docstring:", "Output:"]:
+            if marker in summary:
+                summary = summary.split(marker)[-1].strip()
+                break
+        
+        # Clean the summary to remove code artifacts
+        summary = self._clean_generated_text(summary)
         
         return summary
+    
+    def _clean_generated_text(self, text: str) -> str:
+        """
+        Clean generated text by removing code artifacts.
+        
+        Args:
+            text: Raw generated text
+            
+        Returns:
+            Cleaned text
+        """
+        # Remove code blocks
+        if '```' in text:
+            # Extract text before code block
+            text = text.split('```')[0].strip()
+        
+        # Remove lines that look like code
+        lines = text.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            # Skip lines that are clearly code
+            if any(marker in line for marker in ['def ', 'class ', 'import ', 'from ', 'self.', '"""']):
+                continue
+            cleaned_lines.append(line)
+        
+        # Join lines
+        result = ' '.join(cleaned_lines)
+        
+        # Remove multiple spaces
+        while '  ' in result:
+            result = result.replace('  ', ' ')
+        
+        return result.strip()
     
     def predict_single(self, code: str, use_reflective_agent: bool = True) -> Dict:
         """

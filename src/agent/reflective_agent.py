@@ -85,6 +85,9 @@ class ReflectiveAgent:
         # Generate refined summary with reduced tokens
         refined = self._generate(refinement_prompt, max_new_tokens=self.max_tokens_refinement)
         
+        # Clean the output
+        refined = self._clean_summary(refined)
+        
         return refined
     
     def is_approved(self, feedback: str) -> bool:
@@ -164,12 +167,14 @@ class ReflectiveAgent:
             # Refine summary
             refined_summary = self.refine_summary(code, current_summary, feedback)
             
-            # Keep best summary (prefer shorter, more concise summaries)
-            if len(refined_summary) > 0:
+            # Validate refined summary
+            if self._is_valid_summary(refined_summary):
                 current_summary = refined_summary
-                # Update best if this seems better (not empty, reasonable length)
-                if 10 < len(refined_summary.split()) < 100:
+                # Update best summary using quality heuristics
+                if self._is_better_summary(refined_summary, best_summary):
                     best_summary = refined_summary
+            else:
+                print(f"Warning: Iteration {iteration + 1} produced invalid summary, keeping previous")
             
             print(f"Iteration {iteration + 1}: Refined summary")
         
@@ -226,3 +231,95 @@ class ReflectiveAgent:
         )
         
         return generated_text.strip()
+    
+    def _clean_summary(self, text: str) -> str:
+        """
+        Clean generated summary by removing code artifacts and formatting issues.
+        
+        Args:
+            text: Raw generated text
+            
+        Returns:
+            Cleaned summary
+        """
+        # Remove common code artifacts
+        lines = text.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            # Skip empty lines
+            if not line:
+                continue
+            # Skip lines that look like code (contain common Python keywords/symbols)
+            if any(marker in line for marker in ['def ', 'class ', 'import ', 'from ', '```', 'python']):
+                continue
+            # Skip lines that are just config keys or fragments
+            if line.endswith("']") or line.endswith('['):
+                continue
+            cleaned_lines.append(line)
+        
+        # Join and clean up
+        cleaned = ' '.join(cleaned_lines)
+        
+        # Remove multiple spaces
+        while '  ' in cleaned:
+            cleaned = cleaned.replace('  ', ' ')
+        
+        return cleaned.strip()
+    
+    def _is_valid_summary(self, summary: str) -> bool:
+        """
+        Check if summary is valid (not empty, not corrupted).
+        
+        Args:
+            summary: Summary to validate
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        if not summary or len(summary.strip()) == 0:
+            return False
+        
+        # Check minimum word count
+        words = summary.split()
+        if len(words) < 3:
+            return False
+        
+        # Check it's not just code fragments
+        code_indicators = ['def ', 'class ', 'import ', 'from ', '```', 'self.', 'config[']
+        if any(indicator in summary for indicator in code_indicators):
+            return False
+        
+        return True
+    
+    def _is_better_summary(self, new_summary: str, current_best: str) -> bool:
+        """
+        Determine if new summary is better than current best.
+        
+        Args:
+            new_summary: New summary to evaluate
+            current_best: Current best summary
+            
+        Returns:
+            True if new is better, False otherwise
+        """
+        new_words = len(new_summary.split())
+        best_words = len(current_best.split())
+        
+        # Prefer summaries with reasonable length (5-150 words)
+        new_in_range = 5 <= new_words <= 150
+        best_in_range = 5 <= best_words <= 150
+        
+        # If only one is in range, prefer that one
+        if new_in_range and not best_in_range:
+            return True
+        if best_in_range and not new_in_range:
+            return False
+        
+        # Both in range or both out of range: prefer more concise (but not too short)
+        # Ideal length is 20-50 words
+        new_distance = abs(new_words - 35)
+        best_distance = abs(best_words - 35)
+        
+        return new_distance < best_distance
