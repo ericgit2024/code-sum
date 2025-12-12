@@ -117,7 +117,12 @@ prompts:
     You are an expert at writing clear, concise Python docstrings. Generate ONLY the docstring text in natural language. Do NOT include code, function definitions, or technical syntax.
     
   instruction_template: |
-    Write a clear docstring for this Python function. Describe what it does, its parameters, and what it returns. Use natural language only.
+    Write a clear, comprehensive docstring for this Python function. You must:
+    1. Describe what the function does
+    2. Document ALL parameters and their purpose
+    3. Describe what the function returns
+    4. Capture ALL conditional logic and branches (if/else statements)
+    5. Accurately describe any calculations or formulas
     
     Function code:
     ```python
@@ -126,15 +131,10 @@ prompts:
     
     {structure_summary}
     
-    Docstring (natural language only):
+    Docstring (natural language only, be thorough and accurate):
     
   reflective_agent_prompt: |
-    Review this docstring and check if it meets these criteria:
-    1. Accuracy: Correctly describes what the code does
-    2. Completeness: Covers the function's purpose, parameters, and return value
-    3. Conciseness: Brief and to the point, no redundancy
-    4. Natural language: NO code, NO syntax, ONLY plain English
-    5. Relevance: Describes THIS specific function, not a different one
+    You are a code review expert. Carefully analyze this docstring against the actual code.
     
     Code:
     {code}
@@ -142,7 +142,18 @@ prompts:
     Docstring:
     {draft_summary}
     
-    If it meets ALL criteria, respond with "APPROVED". Otherwise, list specific improvements needed.
+    Check these criteria:
+    1. **Accuracy**: Does it correctly describe what the code does? Are formulas/calculations correct?
+    2. **Completeness**: Are ALL code paths documented (if/else branches, loops, etc.)?
+    3. **Parameter Coverage**: Are ALL parameters and their effects documented?
+    4. **Return Value**: Is the return value accurately described?
+    5. **Conciseness**: Is it brief without being incomplete?
+    6. **Natural Language**: NO code syntax, ONLY plain English
+    
+    CRITICAL: Read the code line-by-line and verify EVERY detail is captured.
+    
+    If it meets ALL criteria perfectly, respond with "APPROVED".
+    Otherwise, respond with "NOT APPROVED" and list SPECIFIC issues with examples.
     
   refinement_prompt: |
     Improve this docstring based on the feedback. Write ONLY natural language description, NO code.

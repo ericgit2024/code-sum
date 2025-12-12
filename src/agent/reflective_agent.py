@@ -149,23 +149,30 @@ class ReflectiveAgent:
         previous_summaries = []
         
         for iteration in range(self.max_iterations):
-            # Check for convergence (summary stopped changing)
-            if current_summary in previous_summaries:
-                print(f"Summary converged after {iteration} iteration(s)")
-                return best_summary, iteration
-            
-            previous_summaries.append(current_summary)
-            
-            # Get critique
+            # Get critique FIRST
             feedback = self.critique_summary(code, current_summary)
             
+            # Debug output
+            print(f"\n[DEBUG] Iteration {iteration + 1} Critique:")
+            print(f"  {feedback[:300]}")
+            
             # Check if approved
-            if self.is_approved(feedback):
+            is_approved = self.is_approved(feedback)
+            print(f"[DEBUG] Approved: {is_approved}")
+            
+            if is_approved:
                 print(f"Summary approved after {iteration + 1} iteration(s)")
                 return current_summary, iteration + 1
             
             # Refine summary
             refined_summary = self.refine_summary(code, current_summary, feedback)
+            
+            # Check for convergence AFTER refinement
+            if refined_summary in previous_summaries:
+                print(f"Summary converged after {iteration + 1} iteration(s)")
+                return best_summary, iteration + 1
+            
+            previous_summaries.append(current_summary)
             
             # Validate refined summary
             if self._is_valid_summary(refined_summary):
