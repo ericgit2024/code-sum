@@ -114,10 +114,10 @@ evaluation:
 # Prompts - IMPROVED for natural language generation
 prompts:
   system_prompt: |
-    You are an expert at writing clear, concise Python docstrings. Generate ONLY the docstring text in natural language. Do NOT include code, function definitions, or technical syntax.
+    You are an expert at explaining code in simple English. Your job is to describe what code does, NOT to write code examples or show usage. Never use code syntax like >>>, function calls, or if/else statements in your explanations. Write like you're explaining to a colleague, not writing documentation.
     
   instruction_template: |
-    Write a natural language description of what this function does. Do NOT write code examples.
+    Explain what this function does in plain English. Just describe it, don't show examples.
     
     Function code:
     ```python
@@ -126,17 +126,19 @@ prompts:
     
     {structure_summary}
     
-    Write 2-3 sentences describing:
-    - What the function does
-    - Key parameters and their purpose
+    In 2-3 sentences, explain:
+    - What it does
+    - What parameters it takes
     - What it returns
     
-    IMPORTANT: Write in plain English sentences. Do NOT include:
-    - Code examples (no >>> or function calls)
-    - Code syntax (no if/else code)
-    - Parameter lists with colons
+    Rules:
+    - Write in plain English only
+    - NO code examples
+    - NO >>> symbols
+    - NO function calls
+    - NO parameter lists with types
     
-    Description:
+    Explanation:
     
   reflective_agent_prompt: |
     Review this docstring against the code. Approve if it accurately describes what the code does.
