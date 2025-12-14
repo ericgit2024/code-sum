@@ -347,11 +347,15 @@ class ReflectiveAgent:
             Cleaned summary
         """
         # Remove prompt markers that might leak into output
-        prompt_markers = ['Feedback:', 'Code:', 'Summary:', 'Docstring:', 'Output:', 'Improved docstring:']
+        prompt_markers = ['Feedback:', 'Code:', 'Summary:', 'Docstring:', 'Output:', 'Improved docstring:', 'Explanation:']
         for marker in prompt_markers:
             if marker in text:
-                # Take only the part before the marker
-                text = text.split(marker)[0].strip()
+                # Take only the part after the marker if it's at the start, otherwise before
+                parts = text.split(marker)
+                if text.strip().startswith(marker):
+                    text = parts[1].strip() if len(parts) > 1 else text
+                else:
+                    text = parts[0].strip()
         
         # Remove common code artifacts (but be less aggressive)
         lines = text.split('\n')
@@ -362,8 +366,11 @@ class ReflectiveAgent:
             # Skip empty lines
             if not line:
                 continue
+            # Remove bullet points and dashes at the start
+            if line.startswith(('- ', '* ', '• ')):
+                line = line[2:].strip()
             # Only skip lines that START with code keywords
-            if line.startswith(('def ', 'class ', 'import ', 'from ')):
+            if line.startswith(('def ', 'class ', 'import ', 'from ', '>>>', '```')):
                 continue
             # Skip lines that are ONLY triple quotes
             if line in ['"""', "'''"]:
@@ -373,21 +380,36 @@ class ReflectiveAgent:
                 continue
             cleaned_lines.append(line)
         
-        # Join and clean up
-        cleaned = ' '.join(cleaned_lines)
+        # Convert to sentences (handle bullet points that were separated by newlines)
+        # Join with periods if lines don't already end with punctuation
+        sentences = []
+        for line in cleaned_lines:
+            if line and not line[-1] in '.!?':
+                sentences.append(line + '.')
+            else:
+                sentences.append(line)
+        
+        # Join sentences with space
+        cleaned = ' '.join(sentences)
         
         # Remove multiple spaces
         while '  ' in cleaned:
             cleaned = cleaned.replace('  ', ' ')
         
+        # Fix double periods
+        cleaned = cleaned.replace('..', '.')
+        
         # Deduplicate repetitive sentences
         cleaned = self._deduplicate_sentences(cleaned)
+        
+        # Enforce maximum length (3-4 sentences for conciseness)
+        cleaned = self._enforce_max_sentences(cleaned, max_sentences=4)
         
         return cleaned.strip()
     
     def _deduplicate_sentences(self, text: str) -> str:
         """
-        Remove repetitive sentences from text.
+        Remove repetitive sentences from text with fuzzy matching.
         
         Args:
             text: Text that may contain repetition
@@ -401,19 +423,57 @@ class ReflectiveAgent:
         if not sentences:
             return text
         
-        # Keep only unique sentences in order
+        # Keep only unique sentences in order with fuzzy matching
         seen = set()
         unique_sentences = []
         
         for sentence in sentences:
-            # Normalize for comparison
+            # Normalize for comparison (remove extra spaces, lowercase)
             normalized = ' '.join(sentence.lower().split())
-            if normalized not in seen:
+            
+            # Check if this is substantially similar to any seen sentence
+            is_duplicate = False
+            for seen_sent in seen:
+                # If 80% of words overlap, consider it a duplicate
+                words1 = set(normalized.split())
+                words2 = set(seen_sent.split())
+                if len(words1) > 0 and len(words2) > 0:
+                    overlap = len(words1 & words2) / max(len(words1), len(words2))
+                    if overlap > 0.8:
+                        is_duplicate = True
+                        break
+            
+            if not is_duplicate:
                 seen.add(normalized)
                 unique_sentences.append(sentence)
         
         # Rejoin with periods
         result = '. '.join(unique_sentences)
+        if result and not result.endswith('.'):
+            result += '.'
+        
+        return result
+    
+    def _enforce_max_sentences(self, text: str, max_sentences: int = 4) -> str:
+        """
+        Limit summary to maximum number of sentences for conciseness.
+        
+        Args:
+            text: Input text
+            max_sentences: Maximum number of sentences to keep
+            
+        Returns:
+            Truncated text
+        """
+        # Split into sentences
+        sentences = [s.strip() for s in text.split('.') if s.strip()]
+        
+        # Keep only first N sentences
+        if len(sentences) > max_sentences:
+            sentences = sentences[:max_sentences]
+        
+        # Rejoin
+        result = '. '.join(sentences)
         if result and not result.endswith('.'):
             result += '.'
         
