@@ -104,9 +104,9 @@ reflective_agent:
   max_tokens_critique: 250  # Moderate limit with structured prompt
   max_tokens_refinement: 300  # Enough for complete docstrings
   
-  # Multi-Criteria Scoring System
+  # Multi-Criteria Scoring System (Phase 2 - DISABLED for Phase 1 baseline)
   scoring:
-    enabled: true  # Enable score-based evaluation
+    enabled: false  # DISABLED - Phase 1 used keyword-based approval
     weights:
       accuracy: 0.35      # Most important - correctness
       completeness: 0.30  # Second - covers all aspects
@@ -116,9 +116,9 @@ reflective_agent:
     early_stop_threshold: 0.90  # Stop if score exceeds this
     min_improvement: 0.05       # Stop if improvement less than this
   
-  # Adaptive Iteration Strategy
+  # Adaptive Iteration Strategy (Phase 2 - DISABLED for Phase 1 baseline)
   adaptive_iterations:
-    enabled: true  # Enable complexity-based iteration adjustment
+    enabled: false  # DISABLED - Phase 1 used fixed 3 iterations
     complexity_thresholds:
       simple: 1      # Functions with cyclomatic complexity <= 3
       moderate: 2    # Functions with cyclomatic complexity 4-8
