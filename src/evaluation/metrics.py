@@ -1,5 +1,5 @@
 """
-Evaluation metrics for code summarization: BLEU, ROUGE, METEOR.
+Evaluation metrics for code summarization: BLEU, ROUGE, METEOR, BERTScore.
 """
 
 import os
@@ -10,6 +10,14 @@ from nltk.translate.meteor_score import meteor_score
 from rouge_score import rouge_scorer
 from typing import List, Dict
 import numpy as np
+
+# BERTScore for semantic similarity
+try:
+    from bert_score import score as bert_score
+    BERTSCORE_AVAILABLE = True
+except ImportError:
+    BERTSCORE_AVAILABLE = False
+    print("Warning: bert-score not installed. Install with: pip install bert-score")
 
 
 # Download required NLTK data
@@ -35,7 +43,7 @@ except LookupError:
 
 
 class EvaluationMetrics:
-    """Calculates BLEU, ROUGE, and METEOR scores."""
+    """Calculates BLEU, ROUGE, METEOR, and BERTScore."""
     
     def __init__(self, config: Dict):
         """
@@ -50,6 +58,7 @@ class EvaluationMetrics:
             use_stemmer=True
         )
         self.smoothing = SmoothingFunction()
+        self.use_bertscore = BERTSCORE_AVAILABLE and config.get('evaluation', {}).get('use_bertscore', True)
         
     def calculate_bleu(self, reference: str, hypothesis: str) -> Dict[str, float]:
         """
@@ -137,6 +146,34 @@ class EvaluationMetrics:
         
         return score
     
+    def calculate_bertscore(self, references: List[str], hypotheses: List[str]) -> Dict[str, float]:
+        """
+        Calculate BERTScore for semantic similarity.
+        
+        Args:
+            references: List of reference summaries
+            hypotheses: List of generated summaries
+            
+        Returns:
+            Dictionary with BERTScore precision, recall, F1
+        """
+        if not BERTSCORE_AVAILABLE:
+            return {'bertscore-f1': 0.0, 'bertscore-precision': 0.0, 'bertscore-recall': 0.0}
+        
+        # Calculate BERTScore (using distilbert-base-uncased for speed)
+        P, R, F1 = bert_score(
+            hypotheses, references,
+            lang='en',
+            model_type='distilbert-base-uncased',
+            verbose=False
+        )
+        
+        return {
+            'bertscore-precision': P.mean().item(),
+            'bertscore-recall': R.mean().item(),
+            'bertscore-f1': F1.mean().item()
+        }
+    
     def evaluate_single(self, reference: str, hypothesis: str) -> Dict[str, float]:
         """
         Evaluate a single prediction.
@@ -162,6 +199,8 @@ class EvaluationMetrics:
         meteor = self.calculate_meteor(reference, hypothesis)
         results['meteor'] = meteor
         
+        # Note: BERTScore is calculated in batch for efficiency
+        
         return results
     
     def evaluate_batch(self, references: List[str], hypotheses: List[str]) -> Dict[str, float]:
@@ -185,6 +224,12 @@ class EvaluationMetrics:
         avg_scores = {}
         for metric in all_scores[0].keys():
             avg_scores[metric] = np.mean([s[metric] for s in all_scores])
+        
+        # Calculate BERTScore (batch operation for efficiency)
+        if self.use_bertscore:
+            print("Calculating BERTScore (semantic similarity)...")
+            bertscore_results = self.calculate_bertscore(references, hypotheses)
+            avg_scores.update(bertscore_results)
         
         return avg_scores
     
@@ -227,5 +272,11 @@ class EvaluationMetrics:
         print("\nMETEOR Score:")
         if 'meteor' in results:
             print(f"  METEOR: {results['meteor']:.4f}")
+        
+        print("\nBERTScore (Semantic Similarity):")
+        for metric in ['bertscore-precision', 'bertscore-recall', 'bertscore-f1']:
+            if metric in results:
+                metric_name = metric.replace('bertscore-', '').upper()
+                print(f"  {metric_name}: {results[metric]:.4f}")
         
         print("="*50 + "\n")
