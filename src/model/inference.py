@@ -8,6 +8,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.rag.rag_system import RAGSystem
 from src.data.preprocessor import DataPreprocessor
 from src.agent.reflective_agent import ReflectiveAgent
+from src.agent.uncertainty_agent import UncertaintyAgent
 
 
 class InferencePipeline:
@@ -33,6 +34,18 @@ class InferencePipeline:
         self.preprocessor = preprocessor
         self.reflective_agent = reflective_agent
         self.config = config
+        
+        # Initialize uncertainty agent if enabled
+        uncertainty_config = config.get('uncertainty_agent', {})
+        if uncertainty_config.get('enabled', False):
+            self.uncertainty_agent = UncertaintyAgent(
+                model, tokenizer, config,
+                n_samples=uncertainty_config.get('n_samples', 5)
+            )
+            print("[InferencePipeline] Uncertainty agent ENABLED")
+        else:
+            self.uncertainty_agent = None
+            print("[InferencePipeline] Uncertainty agent DISABLED")
         
     def generate_initial_summary(self, prompt: str, max_new_tokens: int = 256) -> str:
         """
@@ -170,13 +183,15 @@ class InferencePipeline:
         
         return result
     
-    def predict_single(self, code: str, use_reflective_agent: bool = True) -> Dict:
+    def predict_single(self, code: str, use_reflective_agent: bool = True, 
+                      use_uncertainty: bool = False) -> Dict:
         """
         Generate summary for a single code sample.
         
         Args:
             code: Python source code
             use_reflective_agent: Whether to use reflective agent
+            use_uncertainty: Whether to use uncertainty-aware generation
             
         Returns:
             Dictionary with summary and metadata
@@ -199,8 +214,24 @@ class InferencePipeline:
         # Generate initial summary
         initial_summary = self.generate_initial_summary(prompt)
         
-        # Apply reflective agent if enabled
-        if use_reflective_agent:
+        # Apply uncertainty-aware generation if enabled
+        uncertainty_metadata = None
+        confidence_scores = None
+        mean_confidence = None
+        
+        if use_uncertainty and self.uncertainty_agent:
+            uncertainty_result = self.uncertainty_agent.generate_with_uncertainty(
+                code, initial_summary
+            )
+            final_summary = uncertainty_result['final_summary']
+            confidence_scores = uncertainty_result['confidence_scores']
+            mean_confidence = uncertainty_result['mean_confidence']
+            uncertainty_metadata = uncertainty_result['uncertainty_metadata']
+            iterations = 0  # Uncertainty agent doesn't use iterations
+            metadata = {}
+            improvement = None
+        # Apply reflective agent if enabled (and uncertainty not used)
+        elif use_reflective_agent:
             final_summary, iterations, metadata = self.reflective_agent.iterative_refinement(
                 code, initial_summary
             )
@@ -226,6 +257,12 @@ class InferencePipeline:
             'rag_examples': len(retrieved)
         }
         
+        # Add uncertainty metadata if available
+        if uncertainty_metadata:
+            result['confidence_scores'] = confidence_scores
+            result['mean_confidence'] = mean_confidence
+            result['uncertainty_metadata'] = uncertainty_metadata
+        
         # Add scoring metadata if available
         if metadata:
             result['scores_history'] = metadata.get('scores_history', [])
@@ -237,13 +274,15 @@ class InferencePipeline:
         return result
     
     def predict_batch(self, test_data: List[Dict], 
-                     use_reflective_agent: bool = True) -> List[Dict]:
+                     use_reflective_agent: bool = True,
+                     use_uncertainty: bool = False) -> List[Dict]:
         """
         Generate summaries for a batch of samples.
         
         Args:
             test_data: List of test samples with 'code'
             use_reflective_agent: Whether to use reflective agent
+            use_uncertainty: Whether to use uncertainty-aware generation
             
         Returns:
             List of predictions
@@ -255,6 +294,7 @@ class InferencePipeline:
         
         print(f"Generating summaries for {total_samples} samples...")
         print(f"Reflective agent: {'ENABLED' if use_reflective_agent else 'DISABLED'}")
+        print(f"Uncertainty agent: {'ENABLED' if use_uncertainty else 'DISABLED'}")
         
         start_time = time.time()
         
@@ -263,7 +303,8 @@ class InferencePipeline:
             
             prediction = self.predict_single(
                 sample['code'],
-                use_reflective_agent=use_reflective_agent
+                use_reflective_agent=use_reflective_agent,
+                use_uncertainty=use_uncertainty
             )
             
             # Add reference if available

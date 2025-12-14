@@ -123,6 +123,16 @@ reflective_agent:
       simple: 1      # Functions with cyclomatic complexity <= 3
       moderate: 2    # Functions with cyclomatic complexity 4-8
       complex: 3     # Functions with cyclomatic complexity > 8
+
+# Uncertainty-Aware Summarization (Option 6)
+uncertainty_agent:
+  enabled: false  # Enable for uncertainty-aware generation
+  n_samples: 5    # Number of Monte Carlo samples (5-10 recommended)
+  confidence_threshold: 0.6  # Refine sentences below this score
+  max_refinement_iterations: 2  # Max times to refine uncertain parts
+  
+  # Performance note: Enabling this increases inference time by ~5x
+  # Expected BLEU improvement: +0.01-0.02
   
 # Evaluation Configuration
 evaluation:

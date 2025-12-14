@@ -39,6 +39,8 @@ def main():
                        help='Override max iterations for reflective agent')
     parser.add_argument('--num_samples', type=int, default=None,
                        help='Limit number of test samples (e.g., 20 for quick testing)')
+    parser.add_argument('--enable_uncertainty', action='store_true',
+                       help='Enable uncertainty-aware summarization (Option 6)')
     parser.add_argument('--output', type=str, default='evaluation_results/results.json',
                        help='Output path for results')
     args = parser.parse_args()
@@ -114,10 +116,22 @@ def main():
     use_reflective = (not args.no_reflective_agent and 
                      config['reflective_agent'].get('enabled', True))
     
+    # Check if uncertainty agent is enabled
+    use_uncertainty = args.enable_uncertainty
+    
     if not use_reflective:
         print("Reflective agent disabled - using base model only")
     
-    predictions = inference_pipeline.predict_batch(test_data, use_reflective_agent=use_reflective)
+    if use_uncertainty:
+        print("Uncertainty agent enabled - using Monte Carlo Dropout")
+        # Disable reflective agent if uncertainty is enabled (they're mutually exclusive)
+        use_reflective = False
+    
+    predictions = inference_pipeline.predict_batch(
+        test_data, 
+        use_reflective_agent=use_reflective,
+        use_uncertainty=use_uncertainty
+    )
     
     # Evaluate
     print("\nCalculating metrics...")
@@ -131,7 +145,22 @@ def main():
     # Add metadata
     results['num_samples'] = len(predictions)
     results['reflective_agent_enabled'] = use_reflective
+    results['uncertainty_agent_enabled'] = use_uncertainty
     results['checkpoint'] = args.checkpoint
+    
+    # Calculate uncertainty statistics if enabled
+    if use_uncertainty:
+        confidence_scores = [p.get('mean_confidence', 1.0) for p in predictions]
+        results['uncertainty_metrics'] = {
+            'mean_confidence': float(sum(confidence_scores) / len(confidence_scores)) if confidence_scores else 0.0,
+            'min_confidence': float(min(confidence_scores)) if confidence_scores else 0.0,
+            'max_confidence': float(max(confidence_scores)) if confidence_scores else 0.0,
+            'low_confidence_ratio': sum(1 for c in confidence_scores if c < 0.6) / len(confidence_scores) if confidence_scores else 0.0
+        }
+        print("\nUncertainty Metrics:")
+        print(f"  Mean confidence: {results['uncertainty_metrics']['mean_confidence']:.3f}")
+        print(f"  Min confidence: {results['uncertainty_metrics']['min_confidence']:.3f}")
+        print(f"  Low confidence ratio: {results['uncertainty_metrics']['low_confidence_ratio']:.2%}")
     
     # Print results
     evaluator.print_results(results)
