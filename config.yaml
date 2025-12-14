@@ -130,6 +130,8 @@ evaluation:
     - "bleu"
     - "rouge"
     - "meteor"
+    - "bertscore"  # Semantic similarity metric
+  use_bertscore: true  # Enable/disable BERTScore (requires bert-score package)
   output_dir: "./evaluation_results"
   
 # Prompts - IMPROVED for natural language generation

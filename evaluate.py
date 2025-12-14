@@ -37,6 +37,8 @@ def main():
                        help='Enable fast mode (greedy decoding, reduced tokens)')
     parser.add_argument('--max_iterations', type=int, default=None,
                        help='Override max iterations for reflective agent')
+    parser.add_argument('--num_samples', type=int, default=None,
+                       help='Limit number of test samples (e.g., 20 for quick testing)')
     parser.add_argument('--output', type=str, default='evaluation_results/results.json',
                        help='Output path for results')
     args = parser.parse_args()
@@ -59,6 +61,12 @@ def main():
     # Step 1: Load dataset
     print("\n[1/6] Loading test dataset...")
     _, _, test_data = load_codesearchnet_dataset(config)
+    
+    # Limit samples if requested
+    if args.num_samples:
+        print(f"Limiting to {args.num_samples} samples for quick testing")
+        test_data = test_data.select(range(min(args.num_samples, len(test_data))))
+
     
     # Step 2: Load RAG index
     print("\n[2/6] Loading RAG index...")
