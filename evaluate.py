@@ -65,7 +65,7 @@ def main():
     # Limit samples if requested
     if args.num_samples:
         print(f"Limiting to {args.num_samples} samples for quick testing")
-        test_data = test_data.select(range(min(args.num_samples, len(test_data))))
+        test_data = test_data[:min(args.num_samples, len(test_data))]
 
     
     # Step 2: Load RAG index
