@@ -136,11 +136,11 @@ evaluation:
   
 # Prompts - IMPROVED for natural language generation
 prompts:
-  system_prompt: |
-    You are an expert at explaining code in simple English. Your job is to describe what code does, NOT to write code examples or show usage. Never use code syntax like >>>, function calls, or if/else statements in your explanations. Write like you're explaining to a colleague, not writing documentation.
+  system_prompt: |\
+    You are a code documentation expert. Generate concise Python docstrings that describe what functions do.
     
-  instruction_template: |
-    Explain what this function does in plain English. Just describe it, don't show examples.
+  instruction_template: |\
+    Generate a concise docstring for this function. Write 1-2 sentences maximum.
     
     Function code:
     ```python
@@ -149,19 +149,7 @@ prompts:
     
     {structure_summary}
     
-    In 2-3 sentences, explain:
-    - What it does
-    - What parameters it takes
-    - What it returns
-    
-    Rules:
-    - Write in plain English only
-    - NO code examples
-    - NO >>> symbols
-    - NO function calls
-    - NO parameter lists with types
-    
-    Explanation:
+    Docstring (1-2 sentences, describe what it does):
     
   reflective_agent_prompt: |
     Review this docstring against the code. Rate it on each criterion with a score from 0.0 to 1.0.
