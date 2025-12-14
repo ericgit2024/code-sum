@@ -181,9 +181,14 @@ class InferencePipeline:
         Returns:
             Dictionary with summary and metadata
         """
-        # Retrieve similar examples
-        retrieved = self.rag_system.retrieve(code)
-        rag_context = self.rag_system.format_rag_context(retrieved)
+        # Retrieve similar examples ONLY if RAG is enabled
+        rag_enabled = self.config.get('rag', {}).get('enabled', False)
+        if rag_enabled:
+            retrieved = self.rag_system.retrieve(code)
+            rag_context = self.rag_system.format_rag_context(retrieved)
+        else:
+            retrieved = []
+            rag_context = ""
         
         # Extract structures
         structures = self.preprocessor.extract_structures(code)

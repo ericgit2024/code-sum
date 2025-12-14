@@ -68,7 +68,7 @@ training:
   
 # RAG Configuration
 rag:
-  enabled: true  # Re-enabled for better context
+  enabled: false  # DISABLED - Phase 1 showed contamination issue (BLEU dropped from 0.185 to 0.047)
   embedding_model: "microsoft/codebert-base"
   vector_store: "faiss"
   top_k: 2
