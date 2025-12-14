@@ -85,7 +85,18 @@ structure:
   max_ast_depth: 10
   max_cfg_nodes: 50
   max_pdg_nodes: 50
+
+# Execution Trace Configuration (Option 3 - Novel Approach)
+execution_trace:
+  enabled: true  # Enable dynamic execution tracing
+  timeout: 2  # Maximum execution time per test (seconds)
+  max_test_inputs: 5  # Maximum number of test inputs to generate
+  max_trace_depth: 50  # Maximum trace depth to capture
+  safe_mode: true  # Use sandboxed execution environment
+  include_in_prompt: true  # Include trace summary in model prompt
+  fallback_on_error: true  # Fall back to static analysis if execution fails
   
+
 # Reflective Agent Configuration - ENHANCED with Scoring
 reflective_agent:
   enabled: true  # Re-enabled with fixes
@@ -152,7 +163,7 @@ prompts:
     Docstring (1-2 sentences, describe what it does):
     
   reflective_agent_prompt: |
-    Review this docstring against the code. Rate it on each criterion with a score from 0.0 to 1.0.
+    Review this docstring. Is it accurate and concise?
     
     Code:
     {code}
@@ -160,18 +171,11 @@ prompts:
     Docstring:
     {draft_summary}
     
-    Rate each criterion (0.0 = poor, 1.0 = excellent):
-    
-    Accuracy: [score] - Does it correctly describe what the code actually does? No hallucinations?
-    Completeness: [score] - Covers parameters (if any), return value (if any), and key logic (if/else, loops)?
-    Naturalness: [score] - Written in plain English? No code syntax like if/else, ==, or function calls?
-    Conciseness: [score] - Clear and to the point? Not overly verbose or repetitive?
-    
-    Overall Decision: APPROVED or NOT APPROVED
-    If NOT APPROVED, briefly explain what needs improvement (1 sentence).
+    Is this docstring good? Answer APPROVED or NOT APPROVED.
+    If NOT APPROVED, explain why in one sentence.
     
   refinement_prompt: |
-    Improve this docstring based on feedback. Write in natural language only.
+    Improve this docstring based on feedback. Keep it concise (1-2 sentences).
     
     Code:
     {code}
@@ -182,4 +186,4 @@ prompts:
     Feedback:
     {feedback}
     
-    Write improved docstring (2-4 sentences, plain English, address feedback):
+    Improved docstring:

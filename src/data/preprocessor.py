@@ -33,13 +33,13 @@ class DataPreprocessor:
         
     def extract_structures(self, code: str) -> Dict[str, str]:
         """
-        Extract structural representation (compact or detailed).
+        Extract structural representation (compact or detailed) and optionally execution traces.
         
         Args:
             code: Python source code
             
         Returns:
-            Dictionary with structure summary
+            Dictionary with structure summary and optional trace summary
         """
         structures = {}
         
@@ -65,7 +65,62 @@ class DataPreprocessor:
             else:
                 structures['pdg'] = ""
         
+        # Add execution trace if enabled (Option 3 - Novel Approach)
+        if self.config.get('execution_trace', {}).get('enabled', False):
+            trace_summary = self._extract_execution_trace(code)
+            if trace_summary:
+                structures['trace'] = trace_summary
+        
         return structures
+    
+    def _extract_execution_trace(self, code: str) -> str:
+        """
+        Extract execution trace summary from code.
+        
+        Args:
+            code: Python source code
+            
+        Returns:
+            Natural language trace summary or empty string if failed
+        """
+        try:
+            from src.execution import ExecutionTracer, TestInputGenerator, TraceSummarizer
+            
+            trace_config = self.config.get('execution_trace', {})
+            
+            # Generate test inputs
+            input_generator = TestInputGenerator()
+            test_inputs = input_generator.generate_inputs(
+                code, 
+                max_combinations=trace_config.get('max_test_inputs', 5)
+            )
+            
+            if not test_inputs:
+                # No inputs generated, skip tracing
+                return ""
+            
+            # Execute with tracing
+            tracer = ExecutionTracer(
+                timeout=trace_config.get('timeout', 2),
+                max_trace_depth=trace_config.get('max_trace_depth', 50)
+            )
+            
+            execution_results = tracer.execute_with_trace(code, test_inputs)
+            
+            # Generate summary
+            summarizer = TraceSummarizer()
+            trace_summary = summarizer.generate_trace_context(execution_results, code)
+            
+            return trace_summary
+            
+        except Exception as e:
+            # Fallback on error if configured
+            if self.config.get('execution_trace', {}).get('fallback_on_error', True):
+                # Silently fall back to static analysis only
+                return ""
+            else:
+                raise
+
     
     def format_prompt(self, code: str, structures: Dict[str, str], 
                      rag_context: str) -> str:
@@ -74,7 +129,7 @@ class DataPreprocessor:
         
         Args:
             code: Python source code
-            structures: Extracted structures or compact summary
+            structures: Extracted structures or compact summary (may include trace)
             rag_context: RAG retrieval context (may be empty if RAG disabled)
             
         Returns:
@@ -82,12 +137,25 @@ class DataPreprocessor:
         """
         instruction_template = self.config['prompts']['instruction_template']
         
+        # Build structure summary (static + dynamic)
+        structure_summary = ""
+        
         # Check if using compact summary
         if 'summary' in structures:
-            # Compact format
+            structure_summary = structures['summary']
+        
+        # Add execution trace if available and enabled
+        if 'trace' in structures and self.config.get('execution_trace', {}).get('include_in_prompt', True):
+            if structure_summary:
+                structure_summary += "\n" + structures['trace']
+            else:
+                structure_summary = structures['trace']
+        
+        # Format prompt
+        if structure_summary:
             prompt = instruction_template.format(
                 code=code,
-                structure_summary=structures['summary']
+                structure_summary=structure_summary
             )
         else:
             # Legacy format with AST/CFG/PDG (not used currently)

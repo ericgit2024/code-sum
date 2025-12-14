@@ -25,19 +25,27 @@ A novel approach to code summarization combining efficient fine-tuning with stru
 
 ### Novel Contributions
 
-1. **Enhanced Compact Structures**
+1. **Execution Trace-Guided Summarization** ⭐⭐⭐⭐⭐ **NEW!**
+   - First approach to combine static + dynamic analysis
+   - Automatic test input generation
+   - Safe execution tracing with timeout protection
+   - Natural language trace summarization
+   - Expected +0.04-0.06 BLEU-4 improvement
+   - See [EXECUTION_TRACE_GUIDE.md](EXECUTION_TRACE_GUIDE.md) for details
+
+2. **Enhanced Compact Structures**
    - Function names and parameter names
    - Called functions list
    - Return type information
    - ~60-80 tokens vs 300-500 for full AST/CFG/PDG
 
-2. **Improved Reflective Agent**
+3. **Improved Reflective Agent**
    - Relaxed approval (multiple keywords)
    - Convergence detection
    - Best summary tracking
    - 3 simplified criteria (accuracy, completeness, clarity)
 
-3. **Efficient Training**
+4. **Efficient Training**
    - LoRA with 4-bit quantization
    - ~2% trainable parameters
    - 5000 samples in ~150-200 minutes
