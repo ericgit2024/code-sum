@@ -57,9 +57,10 @@ class InferencePipeline:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=150,  # Reduced for faster generation (2-3 sentences is enough)
+                max_new_tokens=256,  # Increased for better quality summaries
                 temperature=0.7,
-                do_sample=False,  # Greedy decoding for 2-3x speedup
+                do_sample=True,  # Enable sampling for diverse, higher-quality outputs
+                top_p=0.9,  # Nucleus sampling for better quality
                 pad_token_id=self.tokenizer.pad_token_id,
                 eos_token_id=self.tokenizer.eos_token_id
             )
@@ -77,71 +78,16 @@ class InferencePipeline:
                 summary = summary.split(marker)[-1].strip()
                 break
         
-        # Clean the summary to remove code artifacts
+        # Clean the summary to remove code artifacts (minimal cleaning)
         summary = self._clean_generated_text(summary)
-        
-        # Convert code-like syntax to natural language
-        summary = self._convert_to_natural_language(summary)
         
         return summary
     
-    def _convert_to_natural_language(self, text: str) -> str:
-        """
-        Convert code-like syntax to natural language.
-        
-        Args:
-            text: Text that may contain code syntax
-            
-        Returns:
-            Natural language version
-        """
-        import re
-        
-        # Remove code operators and syntax
-        # Replace "if X:" with "If X,"
-        text = re.sub(r'\bif\s+([^:]+):', r'If \1,', text)
-        text = re.sub(r'\belse:', 'otherwise', text)
-        text = re.sub(r'\belif\s+([^:]+):', r'if \1,', text)
-        
-        # Remove assignment operators (=)
-        text = re.sub(r'\s*=\s*', ' is ', text)
-        
-        # Remove function call parentheses for common functions
-        text = re.sub(r'raise\s+(\w+)\((.*?)\)', r'raises \1 with \2', text)
-        text = re.sub(r'ValueError\("([^"]+)"\)', r'error: \1', text)
-        text = re.sub(r'round\(([^,]+),\s*(\d+)\)', r'\1 rounded to \2 decimals', text)
-        
-        # Remove quotes around strings
-        text = re.sub(r'"([^"]+)"', r'\1', text)
-        text = re.sub(r"'([^']+)'", r'\1', text)
-        
-        # Replace comparison operators
-        text = text.replace('<=', 'less than or equal to')
-        text = text.replace('>=', 'greater than or equal to')
-        text = text.replace('==', 'equals')
-        text = text.replace('!=', 'not equal to')
-        text = text.replace('<', 'less than')
-        text = text.replace('>', 'greater than')
-        
-        # Replace boolean operators
-        text = text.replace(' and ', ' and ')
-        text = text.replace(' or ', ' or ')
-        text = text.replace(' not ', ' not ')
-        
-        # Remove list brackets for simple lists
-        text = re.sub(r'\[([^\]]+)\]', r'\1', text)
-        
-        # Clean up multiple spaces
-        text = re.sub(r'\s+', ' ', text)
-        
-        # Remove bullet points at start
-        text = re.sub(r'^\s*[-•]\s*', '', text)
-        
-        return text.strip()
+
     
     def _clean_generated_text(self, text: str) -> str:
         """
-        Clean generated text by removing code artifacts.
+        Clean generated text by removing code artifacts (minimal processing).
         
         Args:
             text: Raw generated text
@@ -149,37 +95,24 @@ class InferencePipeline:
         Returns:
             Cleaned text
         """
-        # Debug: print raw output to help diagnose issues
-        if text.strip():
-            print(f"[DEBUG] Raw LLM output: {repr(text[:200])}")
-        
         # Extract text from within triple quotes if present
         if '"""' in text or "'''" in text:
-            # Try to extract content between triple quotes
             for quote in ['"""', "'''"]:
                 if text.count(quote) >= 2:
                     parts = text.split(quote)
                     if len(parts) >= 3:
-                        # Take the content between first pair of triple quotes
                         text = parts[1].strip()
-                        print(f"[DEBUG] Extracted from quotes: {repr(text[:100])}")
                         break
         
-        
-        # Extract text from code blocks (markdown format)
         # If there's a code block, take the text BEFORE it (the summary), not the code itself
         if '```' in text:
             parts = text.split('```')
             if len(parts) >= 2:
-                # Take the text BEFORE the first code block
                 text = parts[0].strip()
-                print(f"[DEBUG] Took text before code block: {repr(text[:100])}")
             else:
-                # Just remove the code block markers
                 text = text.replace('```', '').strip()
         
-        
-        # Remove lines that look like code (but be less aggressive)
+        # Remove only obvious code lines (def, class, import)
         lines = text.split('\n')
         cleaned_lines = []
         
@@ -187,12 +120,9 @@ class InferencePipeline:
             line = line.strip()
             if not line:
                 continue
-            # Remove bullet points and dashes at the start
-            line = line.lstrip('-•* ')
-            # Only skip lines that START with code keywords (not just contain them)
+            # Only skip lines that are clearly code definitions
             if line.startswith(('def ', 'class ', 'import ', 'from ')):
                 continue
-            # Skip standalone triple quotes (already extracted content above)
             if line in ['"""', "'''"]:
                 continue
             cleaned_lines.append(line)
@@ -203,12 +133,6 @@ class InferencePipeline:
         # Remove multiple spaces
         while '  ' in result:
             result = result.replace('  ', ' ')
-        
-        # Deduplicate repetitive sentences
-        result = self._deduplicate_text(result)
-        
-        # Show full cleaned result for debugging
-        print(f"[DEBUG] Final cleaned: {repr(result)}")
         
         return result.strip()
     

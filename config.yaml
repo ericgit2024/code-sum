@@ -66,9 +66,9 @@ training:
   max_grad_norm: 0.3
   max_seq_length: 512
   
-# RAG Configuration - DISABLED (causing irrelevant summaries)
+# RAG Configuration
 rag:
-  enabled: false  # Disabled - retrieval contaminating summaries
+  enabled: true  # Re-enabled for better context
   embedding_model: "microsoft/codebert-base"
   vector_store: "faiss"
   top_k: 2
@@ -90,7 +90,7 @@ structure:
 reflective_agent:
   enabled: true  # Re-enabled with fixes
   max_iterations: 3  # For training/inference (base value, adjusted by complexity)
-  max_iterations_eval: 1  # For evaluation (faster, 2-3x speedup)
+  max_iterations_eval: 3  # For evaluation (increased for better quality)
   criteria:
     - "accuracy"      # Does it match what the code does?
     - "completeness"  # Covers main points?
