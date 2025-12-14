@@ -58,7 +58,10 @@ class UncertaintyAgent:
     
     def generate_multiple_summaries(self, prompt: str, n_samples: int = None) -> List[str]:
         """
-        Generate multiple summaries using Monte Carlo Dropout.
+        Generate multiple summaries using temperature-based sampling.
+        
+        Note: We use varying temperatures instead of dropout because quantized models
+        may not have active dropout layers. This approach works better with 4-bit models.
         
         Args:
             prompt: Input prompt
@@ -72,42 +75,43 @@ class UncertaintyAgent:
         
         summaries = []
         
-        # Enable dropout for uncertainty estimation
-        self.enable_dropout()
+        # Use different temperatures for diversity (instead of dropout)
+        # Range from 0.5 (focused) to 1.2 (creative)
+        temperatures = np.linspace(0.5, 1.2, n_samples)
         
-        try:
-            for i in range(n_samples):
-                # Tokenize
-                inputs = self.tokenizer(
-                    prompt,
-                    return_tensors='pt',
-                    truncation=True,
-                    max_length=512
-                ).to(self.model.device)
-                
-                # Generate with different dropout patterns
-                with torch.no_grad():
-                    outputs = self.model.generate(
-                        **inputs,
-                        max_new_tokens=150,
-                        min_new_tokens=10,
-                        temperature=0.7,  # Some randomness for diversity
-                        do_sample=True,
-                        top_p=0.9,
-                        pad_token_id=self.tokenizer.pad_token_id,
-                        eos_token_id=self.tokenizer.eos_token_id
-                    )
-                
-                # Decode
-                full_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-                
-                # Extract summary (after the prompt)
-                summary = self._extract_summary(full_text, prompt)
-                summaries.append(summary)
-        
-        finally:
-            # Always restore normal inference mode
-            self.disable_dropout()
+        for i in range(n_samples):
+            # Tokenize
+            inputs = self.tokenizer(
+                prompt,
+                return_tensors='pt',
+                truncation=True,
+                max_length=512
+            ).to(self.model.device)
+            
+            # Generate with different temperature for diversity
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=150,
+                    min_new_tokens=10,
+                    temperature=float(temperatures[i]),  # Vary temperature for diversity
+                    do_sample=True,
+                    top_p=0.9,
+                    top_k=50,  # Add top-k for more diversity
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id
+                )
+            
+            # Decode
+            full_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            
+            # Extract summary (after the prompt)
+            summary = self._extract_summary(full_text, prompt)
+            summaries.append(summary)
+            
+            # Debug: print temperature and summary for first sample
+            if i == 0:
+                print(f"[UncertaintyAgent] Sample {i+1} (temp={temperatures[i]:.2f}): {summary[:80]}...")
         
         return summaries
     
