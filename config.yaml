@@ -136,10 +136,10 @@ evaluation:
   
 # Prompts - IMPROVED for natural language generation
 prompts:
-  system_prompt: |\
+  system_prompt: |
     You are a code documentation expert. Generate concise Python docstrings that describe what functions do.
     
-  instruction_template: |\
+  instruction_template: |
     Generate a concise docstring for this function. Write 1-2 sentences maximum.
     
     Function code:
