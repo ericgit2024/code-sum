@@ -104,9 +104,9 @@ reflective_agent:
   max_tokens_critique: 250  # Moderate limit with structured prompt
   max_tokens_refinement: 300  # Enough for complete docstrings
   
-  # Multi-Criteria Scoring System (Phase 2 - DISABLED for Phase 1 baseline)
+  # Multi-Criteria Scoring System (ENABLED for complete solution)
   scoring:
-    enabled: false  # DISABLED - Phase 1 used keyword-based approval
+    enabled: true  # ENABLED - Weighted multi-criteria evaluation
     weights:
       accuracy: 0.35      # Most important - correctness
       completeness: 0.30  # Second - covers all aspects
