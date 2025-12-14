@@ -57,10 +57,9 @@ class InferencePipeline:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=400,  # Increased from 256 to prevent truncation
+                max_new_tokens=150,  # Reduced for faster generation (2-3 sentences is enough)
                 temperature=0.7,
-                do_sample=True,
-                top_p=0.9,
+                do_sample=False,  # Greedy decoding for 2-3x speedup
                 pad_token_id=self.tokenizer.pad_token_id,
                 eos_token_id=self.tokenizer.eos_token_id
             )
@@ -188,6 +187,8 @@ class InferencePipeline:
             line = line.strip()
             if not line:
                 continue
+            # Remove bullet points and dashes at the start
+            line = line.lstrip('-•* ')
             # Only skip lines that START with code keywords (not just contain them)
             if line.startswith(('def ', 'class ', 'import ', 'from ')):
                 continue
@@ -196,7 +197,7 @@ class InferencePipeline:
                 continue
             cleaned_lines.append(line)
         
-        # Join lines
+        # Join lines into a single paragraph
         result = ' '.join(cleaned_lines)
         
         # Remove multiple spaces
@@ -206,7 +207,8 @@ class InferencePipeline:
         # Deduplicate repetitive sentences
         result = self._deduplicate_text(result)
         
-        print(f"[DEBUG] Final cleaned: {repr(result[:100])}")
+        # Show full cleaned result for debugging
+        print(f"[DEBUG] Final cleaned: {repr(result)}")
         
         return result.strip()
     
