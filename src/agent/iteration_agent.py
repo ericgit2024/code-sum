@@ -332,22 +332,76 @@ class IterationAgent:
         return '. '.join(sentences) + '.' if sentences else ""
     
     def _clean_summary(self, text: str) -> str:
-        """Clean generated summary."""
-        # Remove prompt markers
-        prompt_markers = ['Docstring:', 'Summary:', 'Output:', 'Improved docstring:']
-        for marker in prompt_markers:
-            if marker in text:
-                parts = text.split(marker)
-                text = parts[-1].strip()
+        """Clean generated summary by removing artifacts and contamination."""
+        if not text:
+            return text
         
-        # Remove code blocks
+        # Remove prompt markers (be aggressive)
+        markers = [
+            'Docstring:', 'Summary:', 'Output:', 'Improved docstring:', 
+            'Improved:', 'Write the improved docstring:', 'Instructions:',
+            'Edit instructions:', 'Add:', 'Original:', 'Code context:',
+            'RULES:', 'IMPORTANT:', 'Structure:', 'Function', 'with params'
+        ]
+        for marker in markers:
+            if marker in text:
+                # Split and take the part after the marker
+                parts = text.split(marker, 1)
+                if len(parts) > 1:
+                    text = parts[1].strip()
+        
+        # Remove code blocks completely
         text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
+        text = re.sub(r'`[^`]+`', '', text)  # Remove inline code
         
         # Remove triple quotes
         text = text.replace('"""', '').replace("'''", '')
         
+        # Remove lines that look like code (start with def, class, import, etc.)
+        lines = text.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            # Skip code-like lines
+            if line.startswith(('def ', 'class ', 'import ', 'from ', 'return ', 'if ', 'for ', 'while ')):
+                continue
+            # Skip lines with assignment operators
+            if ' = ' in line or '==' in line:
+                continue
+            # Skip lines that are just numbers or punctuation
+            if line.replace('.', '').replace(',', '').isdigit():
+                continue
+            cleaned_lines.append(line)
+        
+        text = ' '.join(cleaned_lines)
+        
+        # Remove repetitive patterns (same sentence repeated)
+        sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
+        unique_sentences = []
+        seen = set()
+        for sent in sentences:
+            normalized = sent.lower().strip()
+            if normalized and normalized not in seen and len(normalized) > 5:
+                seen.add(normalized)
+                unique_sentences.append(sent)
+        
+        # Limit to first 4 sentences
+        unique_sentences = unique_sentences[:4]
+        
+        # Rejoin
+        if unique_sentences:
+            text = '. '.join(unique_sentences)
+            if not text.endswith('.'):
+                text += '.'
+        
         # Clean up whitespace
         text = ' '.join(text.split())
+        
+        # Remove any remaining artifacts
+        text = text.replace('Docstring (1-2 sentences, describe what it does):', '')
+        text = text.replace('(1-2 sentences, describe what it does)', '')
         
         return text.strip()
     

@@ -97,11 +97,11 @@ iteration_agent:
     check_naturalness: true
   instruction_generation:
     max_instructions: 4  # 3-4 sentences
-    temperature: 0.7
+    temperature: 0.3  # Lower for more focused instructions
   constrained_refinement:
     strategy: "additive"  # Only add words, don't remove
-    max_new_tokens: 150
-    temperature: 0.7
+    max_new_tokens: 100  # Reduced to prevent verbosity
+    temperature: 0.5  # Lower for more controlled output
 
 # Reflective Agent Configuration - DISABLED for Phase 1
 reflective_agent:
@@ -235,30 +235,25 @@ prompts:
     Report issues found (be specific):
     
   edit_instruction_prompt: |
-    Based on these validation issues, write 3-4 sentences describing what to ADD to improve the docstring.
+    You are improving a Python docstring. Based on the issues below, write 2-3 clear sentences describing what information to ADD.
     
-    Current docstring:
-    {docstring}
+    Current docstring: {docstring}
     
-    Issues found:
-    {validation_report}
+    Issues: {validation_report}
     
-    Edit instructions (3-4 sentences, what to add/clarify):
+    Instructions (2-3 sentences only, natural language):
     
   constrained_refinement_prompt: |
-    Improve this docstring by ADDING the suggested information. Keep ALL original words and phrases.
+    You are a Python documentation expert. Improve the docstring below by adding the suggested information.
     
-    Original docstring:
-    {original_docstring}
+    RULES:
+    1. Keep ALL words from the original docstring
+    2. Add new information naturally
+    3. Write in plain English (no code syntax)
+    4. Keep it concise (2-4 sentences total)
     
-    What to add:
-    {edit_instructions}
+    Original: {original_docstring}
     
-    Code context:
-    ```python
-    {code}
-    ```
+    Add: {edit_instructions}
     
-    IMPORTANT: Keep all words from the original docstring and add new information naturally.
-    
-    Write the improved docstring:
+    Improved docstring:
