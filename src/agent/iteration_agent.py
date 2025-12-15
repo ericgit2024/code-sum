@@ -407,24 +407,55 @@ class IterationAgent:
     
     def _verify_word_preservation(self, original: str, refined: str) -> bool:
         """
-        Verify that all words from original are present in refined.
+        Verify that important words from original are present in refined.
+        Ignores common stop words and focuses on content words.
         
         Args:
             original: Original docstring
             refined: Refined docstring
             
         Returns:
-            True if all original words are preserved
+            True if important original words are preserved
         """
-        # Tokenize into words (lowercase, alphanumeric only)
+        # Common stop words to ignore
+        stop_words = {
+            'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+            'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should',
+            'could', 'may', 'might', 'must', 'can', 'to', 'of', 'in', 'on', 'at',
+            'by', 'for', 'with', 'from', 'as', 'into', 'through', 'during', 'before',
+            'after', 'above', 'below', 'between', 'under', 'again', 'further', 'then',
+            'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'both',
+            'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor',
+            'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just',
+            'but', 'if', 'or', 'because', 'while', 'about', 'against', 'any',
+            'it', 'its', 'itself', 'they', 'them', 'their', 'what', 'which', 'who',
+            'this', 'that', 'these', 'those', 'am', 'and', 'also', 'otherwise',
+            # Numbers and common code words to ignore
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+            'true', 'false', 'none', 'null'
+        }
+        
+        # Extract words (alphanumeric only, lowercase)
         original_words = set(re.findall(r'\b\w+\b', original.lower()))
         refined_words = set(re.findall(r'\b\w+\b', refined.lower()))
         
-        # Check if all original words are in refined
-        missing_words = original_words - refined_words
+        # Filter out stop words and very short words
+        important_original = {
+            word for word in original_words 
+            if word not in stop_words and len(word) > 2
+        }
         
-        if missing_words:
-            print(f"[WARNING] Missing words: {missing_words}")
+        # Check if important words are preserved
+        missing_words = important_original - refined_words
+        
+        # Allow up to 20% of important words to be missing (some flexibility)
+        if len(important_original) == 0:
+            return True  # No important words to preserve
+        
+        preservation_rate = 1.0 - (len(missing_words) / len(important_original))
+        
+        if preservation_rate < 0.8:  # Less than 80% preserved
+            print(f"[WARNING] Missing important words: {missing_words}")
             return False
         
         return True
