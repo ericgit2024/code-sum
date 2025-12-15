@@ -257,3 +257,39 @@ prompts:
     Add: {edit_instructions}
     
     Improved docstring:
+    
+# RL Training Configuration (Phase 1 & 2)
+rl:
+  enabled: true
+  
+  # Training configuration
+  num_epochs: 5  # Phase 1: 5 epochs for validation
+  batch_size: 4
+  mini_batch_size: 1
+  learning_rate: 1.0e-5  # Lower than supervised learning
+  gradient_accumulation_steps: 4
+  max_grad_norm: 1.0
+  
+  # PPO-specific settings
+  ppo_epochs: 4  # Number of PPO update epochs per batch
+  clip_range: 0.2  # PPO clipping parameter
+  kl_penalty: 0.1  # KL divergence penalty coefficient
+  target_kl: 0.01  # Target KL divergence (early stopping)
+  
+  # Reward function weights (must sum to 1.0)
+  reward_weights:
+    parameter_coverage: 0.25      # Mentions all parameters
+    return_mention: 0.25          # Describes return value
+    control_flow: 0.20            # Covers if/else, loops, etc.
+    naturalness: 0.15             # No code syntax
+    fluency: 0.10                 # BLEU-based readability
+    hallucination_penalty: 0.05   # Penalizes non-existent features
+  
+  # Training subset (Phase 1 validation)
+  phase1_samples: 500  # Use subset for Phase 1
+  phase2_samples: 5000  # Full dataset for Phase 2
+  
+  # Logging
+  log_interval: 10  # Log every N batches
+  save_interval: 1  # Save checkpoint every N epochs
+

@@ -120,6 +120,66 @@ python evaluate.py --checkpoint ./outputs/final_model --no_reflective_agent
 python run_inference.py --checkpoint ./outputs/final_model --code "def add(a, b): return a + b"
 ```
 
+## RL Training (Phase 1 & 2)
+
+### Phase 1: Validation (500 samples, 5 epochs)
+
+**Purpose**: Validate RL approach before full-scale training.
+
+```bash
+# Step 1: Test reward function
+python test_reward_function.py
+
+# Step 2: Analyze current model
+python analyze_rewards.py --checkpoint ./outputs/final_model --num_samples 100
+
+# Step 3: Run Phase 1 training
+python train_rl_phase1.py --checkpoint ./outputs/final_model --num_samples 500 --num_epochs 5
+
+# Step 4: Analyze improvements
+python analyze_rewards.py --checkpoint ./outputs/rl_phase1/final_model --num_samples 100
+
+# Step 5: Evaluate metrics
+python evaluate.py --checkpoint ./outputs/rl_phase1/final_model
+```
+
+**Expected Results**:
+- Reward: 0.55 → 0.65-0.70 (+0.10-0.15)
+- BLEU-4: 0.185 → 0.20-0.22 (+0.02-0.04)
+- Better parameter coverage and control flow descriptions
+
+**Runtime**: ~2-3 hours on T4 GPU
+
+### Phase 2: Full-Scale Training (5000 samples, 10 epochs)
+
+If Phase 1 shows improvement, proceed to Phase 2:
+
+```bash
+python train_rl_phase2.py --checkpoint ./outputs/rl_phase1/final_model --num_samples 5000 --num_epochs 10
+```
+
+**Expected Results**:
+- Reward: 0.75-0.85
+- BLEU-4: 0.23-0.27 (SOTA range)
+- ROUGE-L: 0.38-0.42
+- METEOR: 0.50-0.54
+
+**Runtime**: ~20-30 hours on T4 GPU
+
+### RL Reward Components
+
+The reward function evaluates 6 aspects:
+1. **Parameter Coverage (25%)**: All parameters mentioned
+2. **Return Mention (25%)**: Return value described
+3. **Control Flow (20%)**: if/else, loops covered
+4. **Naturalness (15%)**: No code syntax
+5. **Fluency (10%)**: BLEU-based readability
+6. **Hallucination Penalty (5%)**: No non-existent features
+
+See [RL Phase 1 Usage Guide](docs/rl_phase1_usage_guide.md) for detailed instructions.
+
+---
+
 ## Configuration
 
 Edit `config.yaml`:
@@ -132,12 +192,18 @@ structure:
   use_compact_summary: true  # Enhanced compact structures
 
 reflective_agent:
-  enabled: true  # Improved agent with fixes
+  enabled: false  # Disabled during RL training (can re-enable for inference)
   max_iterations: 3
   criteria: [accuracy, completeness, clarity]
 
 rag:
   enabled: false  # Disabled (ablation study)
+  
+rl:
+  enabled: true  # Phase 1: RL training with execution-based rewards
+  num_epochs: 5
+  batch_size: 4
+  learning_rate: 1.0e-5
 ```
 
 ## Key Features
