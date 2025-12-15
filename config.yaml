@@ -237,13 +237,11 @@ prompts:
   edit_instruction_prompt: |
     You are improving a Python docstring. Based on the issues below, write 2-3 clear sentences describing what information to ADD.
     
-    IMPORTANT: When mentioning parameters, use their actual names (e.g., "list1 and list2" not just "two lists").
-    
     Current docstring: {docstring}
     
     Issues: {validation_report}
     
-    Instructions (2-3 sentences, use actual parameter names):
+    Instructions (2-3 sentences only, natural language):
     
   constrained_refinement_prompt: |
     You are a Python documentation expert. Improve the docstring below by adding the suggested information.
@@ -253,7 +251,6 @@ prompts:
     2. Add new information naturally
     3. Write in plain English (no code syntax)
     4. Keep it concise (2-4 sentences total)
-    5. Use actual parameter names and variable names from the code
     
     Original: {original_docstring}
     
