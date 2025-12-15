@@ -94,7 +94,7 @@ def test_iteration_agent():
         print(f"\nCode:\n{code}")
         
         # Extract structure
-        structure = summarizer.extract_compact_summary(code)
+        structure = summarizer.summarize_code(code)
         print(f"\nStructure: {structure}")
         
         # Generate initial summary (mock for testing)
