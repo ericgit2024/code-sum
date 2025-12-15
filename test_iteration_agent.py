@@ -80,7 +80,7 @@ def test_iteration_agent():
     agent = IterationAgent(model, tokenizer, config)
     
     # Initialize structure summarizer
-    summarizer = CompactStructureSummarizer(config)
+    summarizer = CompactStructureSummarizer()
     
     print("\n[3/3] Testing with sample functions...")
     print("="*80)
