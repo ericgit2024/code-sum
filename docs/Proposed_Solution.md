@@ -15,7 +15,7 @@ This solution combines **efficiency** and **quality** through a novel architectu
 
 ### Visual Architecture
 
-![System Architecture](C:/Users/ericb/.gemini/antigravity/brain/10e71898-23cd-4e9f-95dd-2118e020eea3/architecture_diagram_1765735068687.png)
+![System Architecture](architecture_diagram.png)
 
 ### Detailed Flow Diagram
 

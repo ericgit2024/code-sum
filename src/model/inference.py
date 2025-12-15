@@ -8,6 +8,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.rag.rag_system import RAGSystem
 from src.data.preprocessor import DataPreprocessor
 from src.agent.reflective_agent import ReflectiveAgent
+from src.agent.iteration_agent import IterationAgent
 from src.agent.uncertainty_agent import UncertaintyAgent
 
 
@@ -34,6 +35,15 @@ class InferencePipeline:
         self.preprocessor = preprocessor
         self.reflective_agent = reflective_agent
         self.config = config
+        
+        # Initialize iteration agent if enabled
+        iteration_config = config.get('iteration_agent', {})
+        if iteration_config.get('enabled', False):
+            self.iteration_agent = IterationAgent(model, tokenizer, config)
+            print("[InferencePipeline] Iteration agent ENABLED")
+        else:
+            self.iteration_agent = None
+            print("[InferencePipeline] Iteration agent DISABLED")
         
         # Initialize uncertainty agent if enabled
         uncertainty_config = config.get('uncertainty_agent', {})
@@ -227,8 +237,16 @@ class InferencePipeline:
             confidence_scores = uncertainty_result['confidence_scores']
             mean_confidence = uncertainty_result['mean_confidence']
             uncertainty_metadata = uncertainty_result['uncertainty_metadata']
-            iterations = 0  # Uncertainty agent doesn't use iterations
+            iterations = 0
             metadata = {}
+            improvement = None
+        # Apply iteration agent if enabled (Phase 1 innovation)
+        elif self.iteration_agent:
+            structure_summary = structures.get('compact_summary', '')
+            final_summary, metadata = self.iteration_agent.iterate_once(
+                code, initial_summary, structure_summary
+            )
+            iterations = 1 if metadata.get('refined', False) else 0
             improvement = None
         # Apply reflective agent if enabled (and uncertainty not used)
         elif use_reflective_agent:

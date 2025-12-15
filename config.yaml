@@ -86,9 +86,26 @@ structure:
   max_cfg_nodes: 50
   max_pdg_nodes: 50
   
-# Reflective Agent Configuration - ENHANCED with Scoring
+# Iteration Agent Configuration (Phase 1 Innovation)
+iteration_agent:
+  enabled: true  # Single-pass validation and refinement
+  validation:
+    check_parameters: true
+    check_return_value: true
+    check_control_flow: true
+    check_function_calls: true
+    check_naturalness: true
+  instruction_generation:
+    max_instructions: 4  # 3-4 sentences
+    temperature: 0.7
+  constrained_refinement:
+    strategy: "additive"  # Only add words, don't remove
+    max_new_tokens: 150
+    temperature: 0.7
+
+# Reflective Agent Configuration - DISABLED for Phase 1
 reflective_agent:
-  enabled: true  # Re-enabled with fixes
+  enabled: false  # Replaced by iteration agent
   max_iterations: 3  # For training/inference (base value, adjusted by complexity)
   max_iterations_eval: 3  # For evaluation (increased for better quality)
   criteria:
@@ -193,3 +210,55 @@ prompts:
     {feedback}
     
     Write improved docstring (2-4 sentences, plain English, address feedback):
+  
+  # Iteration Agent Prompts
+  validation_prompt: |
+    Analyze this docstring against the code and identify what's missing or unclear.
+    
+    Code:
+    ```python
+    {code}
+    ```
+    
+    Structure: {structure_summary}
+    
+    Docstring:
+    {docstring}
+    
+    Check:
+    1. Are all parameters mentioned? List any missing.
+    2. Is the return value/type mentioned? 
+    3. Are key control flows mentioned (if/else, loops, error handling)?
+    4. Are important function calls mentioned?
+    5. Is it written in natural language (no code syntax)?
+    
+    Report issues found (be specific):
+    
+  edit_instruction_prompt: |
+    Based on these validation issues, write 3-4 sentences describing what to ADD to improve the docstring.
+    
+    Current docstring:
+    {docstring}
+    
+    Issues found:
+    {validation_report}
+    
+    Edit instructions (3-4 sentences, what to add/clarify):
+    
+  constrained_refinement_prompt: |
+    Improve this docstring by ADDING the suggested information. Keep ALL original words and phrases.
+    
+    Original docstring:
+    {original_docstring}
+    
+    What to add:
+    {edit_instructions}
+    
+    Code context:
+    ```python
+    {code}
+    ```
+    
+    IMPORTANT: Keep all words from the original docstring and add new information naturally.
+    
+    Write the improved docstring:
