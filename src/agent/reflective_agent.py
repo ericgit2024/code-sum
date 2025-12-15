@@ -6,6 +6,14 @@ import torch
 from typing import Dict, Tuple
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+# Entity verification imports
+try:
+    from src.verification.entity_verifier import EntityVerifier
+    from src.verification.instruction_agent import InstructionAgent
+    ENTITY_VERIFICATION_AVAILABLE = True
+except ImportError:
+    ENTITY_VERIFICATION_AVAILABLE = False
+
 
 class ReflectiveAgent:
     """Agent that critiques and refines code summaries."""
@@ -60,6 +68,18 @@ class ReflectiveAgent:
             'moderate': 2,
             'complex': 3
         })
+        
+        # Entity verification settings
+        self.entity_verification_enabled = (
+            ENTITY_VERIFICATION_AVAILABLE and 
+            config.get('entity_verification', {}).get('enabled', False)
+        )
+        if self.entity_verification_enabled:
+            self.entity_verifier = EntityVerifier(config)
+            self.instruction_agent = InstructionAgent(config)
+        else:
+            self.entity_verifier = None
+            self.instruction_agent = None
         
     def critique_summary(self, code: str, draft_summary: str) -> str:
         """
@@ -191,8 +211,21 @@ class ReflectiveAgent:
         previous_score = 0.0
         
         for iteration in range(max_iterations):
+            # Entity verification BEFORE critique
+            entity_feedback = ""
+            entity_result = None
+            if self.entity_verification_enabled:
+                entity_result = self.entity_verifier.verify(code, current_summary)
+                if not entity_result.passes_threshold:
+                    entity_feedback = self.instruction_agent.generate_critique_enhancement(entity_result)
+                    print(f"\n[ENTITY VERIFICATION] {entity_feedback}")
+            
             # Get critique FIRST
             feedback = self.critique_summary(code, current_summary)
+            
+            # Append entity feedback if verification failed
+            if entity_feedback:
+                feedback = f"{feedback}\n\n{entity_feedback}"
             
             # Extract scores if scoring is enabled
             if self.scoring_enabled:
@@ -220,7 +253,8 @@ class ReflectiveAgent:
                         'scores_history': scores_history,
                         'final_score': weighted_score,
                         'complexity': complexity_info,
-                        'stop_reason': reason
+                        'stop_reason': reason,
+                        'entity_verification': self.instruction_agent.get_feedback_summary(entity_result) if (self.entity_verification_enabled and entity_result) else None
                     }
                     return current_summary, iteration + 1, metadata
                 
@@ -236,13 +270,21 @@ class ReflectiveAgent:
                 is_approved = self.is_approved(feedback)
                 print(f"[DEBUG] Approved: {is_approved}")
             
-            if is_approved:
+            # Check entity verification before approval
+            entity_approved = True
+            if self.entity_verification_enabled and entity_result:
+                entity_approved = entity_result.passes_threshold
+                if not entity_approved:
+                    print(f"[ENTITY VERIFICATION] Failed - hallucination score: {entity_result.hallucination_score:.3f}")
+            
+            if is_approved and entity_approved:
                 print(f"Summary approved after {iteration + 1} iteration(s)")
                 metadata = {
                     'scores_history': scores_history,
                     'final_score': weighted_score if self.scoring_enabled else None,
                     'complexity': complexity_info,
-                    'stop_reason': 'approved'
+                    'stop_reason': 'approved',
+                    'entity_verification': self.instruction_agent.get_feedback_summary(entity_result) if entity_result else None
                 }
                 return current_summary, iteration + 1, metadata
             
@@ -256,7 +298,8 @@ class ReflectiveAgent:
                     'scores_history': scores_history,
                     'final_score': weighted_score if self.scoring_enabled else None,
                     'complexity': complexity_info,
-                    'stop_reason': 'converged'
+                    'stop_reason': 'converged',
+                    'entity_verification': self.instruction_agent.get_feedback_summary(entity_result) if (self.entity_verification_enabled and entity_result) else None
                 }
                 return best_summary, iteration + 1, metadata
             
@@ -274,11 +317,17 @@ class ReflectiveAgent:
             print(f"Iteration {iteration + 1}: Refined summary")
         
         print(f"Max iterations ({max_iterations}) reached")
+        # Final entity verification
+        final_entity_result = None
+        if self.entity_verification_enabled:
+            final_entity_result = self.entity_verifier.verify(code, best_summary)
+        
         metadata = {
             'scores_history': scores_history,
             'final_score': weighted_score if self.scoring_enabled else None,
             'complexity': complexity_info,
-            'stop_reason': 'max_iterations'
+            'stop_reason': 'max_iterations',
+            'entity_verification': self.instruction_agent.get_feedback_summary(final_entity_result) if final_entity_result else None
         }
         return best_summary, max_iterations, metadata
     

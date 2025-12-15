@@ -123,6 +123,19 @@ reflective_agent:
       simple: 1      # Functions with cyclomatic complexity <= 3
       moderate: 2    # Functions with cyclomatic complexity 4-8
       complex: 3     # Functions with cyclomatic complexity > 8
+
+# Entity Verification Configuration (Phase 1 - Hallucination Detection)
+entity_verification:
+  enabled: true  # Enable entity verification for hallucination detection
+  hallucination_threshold: 0.30  # Maximum acceptable hallucination score (0.0-1.0)
+  entity_weights:
+    function_names: 1.0      # Critical - function name must match
+    parameter_names: 1.0     # Critical - all parameters must be mentioned
+    called_functions: 0.7    # Important - called functions should be accurate
+    return_types: 0.7        # Important - return type should be mentioned
+    variables: 0.3           # Optional - variables are less critical
+  require_all_params: true   # Require all parameters to be mentioned in docstring
+  allow_synonyms: true       # Allow synonyms like "returns" vs "outputs"
   
 # Evaluation Configuration
 evaluation:
