@@ -86,43 +86,24 @@ structure:
   max_cfg_nodes: 50
   max_pdg_nodes: 50
   
-# Reflective Agent Configuration - ENHANCED with Scoring
-reflective_agent:
-  enabled: true  # Re-enabled with fixes
-  max_iterations: 3  # For training/inference (base value, adjusted by complexity)
-  max_iterations_eval: 3  # For evaluation (increased for better quality)
-  criteria:
-    - "accuracy"      # Does it match what the code does?
-    - "completeness"  # Covers main points?
-    - "naturalness"   # Plain English, no code syntax?
-    - "conciseness"   # Clear and concise?
-  threshold_score: 0.7  # Lowered from 0.8 for easier approval
+# Summary Critic Agent Configuration
+summary_critic:
+  enabled: true
+  max_iterations: 3  # Maximum refinement iterations
   temperature: 0.7
+  max_tokens_refinement: 300  # Tokens for refinement generation
+  
   # Fast mode settings for evaluation
-  fast_mode: false  # Enable for faster evaluation
-  greedy_decoding: false  # Use greedy instead of sampling (30-50% faster)
-  max_tokens_critique: 250  # Moderate limit with structured prompt
-  max_tokens_refinement: 300  # Enough for complete docstrings
+  fast_mode: false
+  greedy_decoding: false
   
-  # Multi-Criteria Scoring System (Phase 2 - DISABLED for Phase 1 baseline)
-  scoring:
-    enabled: false  # DISABLED - Phase 1 used keyword-based approval
-    weights:
-      accuracy: 0.35      # Most important - correctness
-      completeness: 0.30  # Second - covers all aspects
-      naturalness: 0.20   # Third - readable prose
-      conciseness: 0.15   # Fourth - not too verbose
-    approval_threshold: 0.75    # Minimum weighted score to approve
-    early_stop_threshold: 0.90  # Stop if score exceeds this
-    min_improvement: 0.05       # Stop if improvement less than this
-  
-  # Adaptive Iteration Strategy (Phase 2 - DISABLED for Phase 1 baseline)
-  adaptive_iterations:
-    enabled: false  # DISABLED - Phase 1 used fixed 3 iterations
-    complexity_thresholds:
-      simple: 1      # Functions with cyclomatic complexity <= 3
-      moderate: 2    # Functions with cyclomatic complexity 4-8
-      complex: 3     # Functions with cyclomatic complexity > 8
+  # Parameter analysis settings
+  ignore_self: true  # Ignore 'self' parameter
+  ignore_cls: true   # Ignore 'cls' parameter
+  ignore_args: true  # Ignore *args
+  ignore_kwargs: true  # Ignore **kwargs
+  min_explanation_threshold: 0.8  # Minimum ratio of explained parameters (80%)
+
 
 # Entity Verification Configuration (Phase 1 - Hallucination Detection)
 entity_verification:

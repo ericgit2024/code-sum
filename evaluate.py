@@ -16,7 +16,7 @@ from src.data.dataset_loader import load_codesearchnet_dataset
 from src.data.preprocessor import DataPreprocessor
 from src.rag.rag_system import RAGSystem
 from src.model.model_loader import load_model
-from src.agent.reflective_agent import ReflectiveAgent
+from src.agent.critic_refinement_agent import CriticRefinementAgent
 from src.model.inference import InferencePipeline
 from src.evaluation.metrics import EvaluationMetrics
 
@@ -31,12 +31,12 @@ def main():
                        help='Path to model checkpoint')
     parser.add_argument('--hf_token', type=str, default=None,
                        help='HuggingFace token')
-    parser.add_argument('--no_reflective_agent', action='store_true',
-                       help='Disable reflective agent')
+    parser.add_argument('--no_critic_agent', action='store_true',
+                       help='Disable critic refinement agent')
     parser.add_argument('--fast_mode', action='store_true',
                        help='Enable fast mode (greedy decoding, reduced tokens)')
     parser.add_argument('--max_iterations', type=int, default=None,
-                       help='Override max iterations for reflective agent')
+                       help='Override max iterations for critic agent')
     parser.add_argument('--num_samples', type=int, default=None,
                        help='Limit number of test samples (e.g., 20 for quick testing)')
     parser.add_argument('--output', type=str, default='evaluation_results/results.json',
@@ -80,13 +80,13 @@ def main():
     # Apply fast mode settings if requested
     if args.fast_mode:
         print("Fast mode enabled: using greedy decoding and reduced token limits")
-        config['reflective_agent']['fast_mode'] = True
-        config['reflective_agent']['greedy_decoding'] = True
+        config['summary_critic']['fast_mode'] = True
+        config['summary_critic']['greedy_decoding'] = True
     
     # Override max iterations if specified
     if args.max_iterations is not None:
         print(f"Overriding max iterations: {args.max_iterations}")
-        config['reflective_agent']['max_iterations_eval'] = args.max_iterations
+        config['summary_critic']['max_iterations'] = args.max_iterations
     
     # Step 4: Load model
     print("\n[4/6] Loading trained model...")
@@ -97,27 +97,27 @@ def main():
         checkpoint_path=args.checkpoint
     )
     
-    # Step 5: Initialize reflective agent with eval mode
-    print("\n[5/6] Initializing reflective agent...")
-    reflective_agent = ReflectiveAgent(model, tokenizer, config, eval_mode=True)
+    # Step 5: Initialize critic refinement agent with eval mode
+    print("\n[5/6] Initializing critic refinement agent...")
+    critic_agent = CriticRefinementAgent(model, tokenizer, config, eval_mode=True)
     
     # Initialize inference pipeline
     inference_pipeline = InferencePipeline(
         model, tokenizer, rag_system, preprocessor,
-        reflective_agent, config
+        critic_agent, config
     )
     
     # Step 6: Generate predictions
     print("\n[6/6] Generating predictions...")
     
-    # Check if reflective agent is enabled
-    use_reflective = (not args.no_reflective_agent and 
-                     config['reflective_agent'].get('enabled', True))
+    # Check if critic agent is enabled
+    use_critic = (not args.no_critic_agent and 
+                     config['summary_critic'].get('enabled', True))
     
-    if not use_reflective:
-        print("Reflective agent disabled - using base model only")
+    if not use_critic:
+        print("Critic agent disabled - using base model only")
     
-    predictions = inference_pipeline.predict_batch(test_data, use_reflective_agent=use_reflective)
+    predictions = inference_pipeline.predict_batch(test_data, use_critic_agent=use_critic)
     
     # Evaluate
     print("\nCalculating metrics...")
@@ -130,7 +130,7 @@ def main():
     
     # Add metadata
     results['num_samples'] = len(predictions)
-    results['reflective_agent_enabled'] = use_reflective
+    results['critic_agent_enabled'] = use_critic
     results['checkpoint'] = args.checkpoint
     
     # Print results

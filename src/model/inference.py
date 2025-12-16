@@ -1,5 +1,5 @@
 """
-Inference pipeline for generating summaries with RAG and reflective agent.
+Inference pipeline for generating summaries with RAG and critic refinement agent.
 """
 
 import torch
@@ -7,7 +7,7 @@ from typing import Dict, List
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.rag.rag_system import RAGSystem
 from src.data.preprocessor import DataPreprocessor
-from src.agent.reflective_agent import ReflectiveAgent
+from src.agent.critic_refinement_agent import CriticRefinementAgent
 
 
 class InferencePipeline:
@@ -15,7 +15,7 @@ class InferencePipeline:
     
     def __init__(self, model: AutoModelForCausalLM, tokenizer: AutoTokenizer,
                  rag_system: RAGSystem, preprocessor: DataPreprocessor,
-                 reflective_agent: ReflectiveAgent, config: Dict):
+                 critic_agent: CriticRefinementAgent, config: Dict):
         """
         Initialize inference pipeline.
         
@@ -24,14 +24,14 @@ class InferencePipeline:
             tokenizer: Tokenizer
             rag_system: RAG system
             preprocessor: Data preprocessor
-            reflective_agent: Reflective agent
+            critic_agent: Critic refinement agent
             config: Configuration dictionary
         """
         self.model = model
         self.tokenizer = tokenizer
         self.rag_system = rag_system
         self.preprocessor = preprocessor
-        self.reflective_agent = reflective_agent
+        self.critic_agent = critic_agent
         self.config = config
         
     def generate_initial_summary(self, prompt: str, max_new_tokens: int = 256) -> str:
@@ -170,13 +170,13 @@ class InferencePipeline:
         
         return result
     
-    def predict_single(self, code: str, use_reflective_agent: bool = True) -> Dict:
+    def predict_single(self, code: str, use_critic_agent: bool = True) -> Dict:
         """
         Generate summary for a single code sample.
         
         Args:
             code: Python source code
-            use_reflective_agent: Whether to use reflective agent
+            use_critic_agent: Whether to use critic refinement agent
             
         Returns:
             Dictionary with summary and metadata
@@ -199,18 +199,18 @@ class InferencePipeline:
         # Generate initial summary
         initial_summary = self.generate_initial_summary(prompt)
         
-        # Apply reflective agent if enabled
-        if use_reflective_agent:
-            final_summary, iterations, metadata = self.reflective_agent.iterative_refinement(
+        # Apply critic agent if enabled
+        if use_critic_agent:
+            final_summary, iterations, metadata = self.critic_agent.iterative_refinement(
                 code, initial_summary
             )
             
-            # Calculate improvement if scoring is enabled
+            # Calculate improvement if available
             improvement = None
-            if metadata.get('scores_history'):
-                initial_score = metadata['scores_history'][0]['weighted_score'] if metadata['scores_history'] else 0
-                final_score = metadata.get('final_score', 0)
-                improvement = final_score - initial_score
+            if metadata.get('analyses_history'):
+                initial_confidence = metadata['analyses_history'][0]['confidence_score'] if metadata['analyses_history'] else 0
+                final_confidence = metadata.get('final_confidence', 0)
+                improvement = final_confidence - initial_confidence
         else:
             final_summary = initial_summary
             iterations = 0
@@ -226,24 +226,23 @@ class InferencePipeline:
             'rag_examples': len(retrieved)
         }
         
-        # Add scoring metadata if available
+        # Add metadata if available
         if metadata:
-            result['scores_history'] = metadata.get('scores_history', [])
-            result['final_score'] = metadata.get('final_score')
-            result['complexity'] = metadata.get('complexity', {})
+            result['analyses_history'] = metadata.get('analyses_history', [])
+            result['final_confidence'] = metadata.get('final_confidence')
             result['stop_reason'] = metadata.get('stop_reason')
             result['improvement'] = improvement
         
         return result
     
     def predict_batch(self, test_data: List[Dict], 
-                     use_reflective_agent: bool = True) -> List[Dict]:
+                     use_critic_agent: bool = True) -> List[Dict]:
         """
         Generate summaries for a batch of samples.
         
         Args:
             test_data: List of test samples with 'code'
-            use_reflective_agent: Whether to use reflective agent
+            use_critic_agent: Whether to use critic refinement agent
             
         Returns:
             List of predictions
@@ -254,7 +253,7 @@ class InferencePipeline:
         total_samples = len(test_data)
         
         print(f"Generating summaries for {total_samples} samples...")
-        print(f"Reflective agent: {'ENABLED' if use_reflective_agent else 'DISABLED'}")
+        print(f"Critic agent: {'ENABLED' if use_critic_agent else 'DISABLED'}")
         
         start_time = time.time()
         
@@ -263,7 +262,7 @@ class InferencePipeline:
             
             prediction = self.predict_single(
                 sample['code'],
-                use_reflective_agent=use_reflective_agent
+                use_critic_agent=use_critic_agent
             )
             
             # Add reference if available
