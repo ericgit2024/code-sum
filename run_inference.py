@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from src.data.preprocessor import DataPreprocessor
 from src.rag.rag_system import RAGSystem
 from src.model.model_loader import load_model
-from src.agent.reflective_agent import ReflectiveAgent
+from src.agent.entity_refinement_agent import EntityRefinementAgent
 from src.model.inference import InferencePipeline
 
 
@@ -32,8 +32,8 @@ def main():
                        help='Path to Python file to summarize')
     parser.add_argument('--hf_token', type=str, default=None,
                        help='HuggingFace token')
-    parser.add_argument('--no_reflective_agent', action='store_true',
-                       help='Disable reflective agent')
+    parser.add_argument('--no_entity_agent', action='store_true',
+                       help='Disable entity refinement agent')
     args = parser.parse_args()
     
     # Load environment variables
@@ -78,22 +78,22 @@ def main():
         checkpoint_path=args.checkpoint
     )
     
-    # Initialize reflective agent
-    print("Initializing reflective agent...")
-    reflective_agent = ReflectiveAgent(model, tokenizer, config)
+    # Initialize entity refinement agent
+    print("Initializing entity refinement agent...")
+    entity_agent = EntityRefinementAgent(model, tokenizer, config)
     
     # Initialize inference pipeline
     inference_pipeline = InferencePipeline(
         model, tokenizer, rag_system, preprocessor,
-        reflective_agent, config
+        entity_agent, config
     )
     
     # Generate summary
     print("\nGenerating summary...")
     print("-"*60)
     
-    use_reflective = not args.no_reflective_agent
-    result = inference_pipeline.predict_single(code, use_reflective_agent=use_reflective)
+    use_entity_agent = not args.no_entity_agent
+    result = inference_pipeline.predict_single(code, use_entity_agent=use_entity_agent)
     
     # Display results
     print("\nCODE:")
@@ -103,7 +103,7 @@ def main():
     print("\nINITIAL SUMMARY:")
     print(result['initial_summary'])
     
-    if use_reflective:
+    if use_entity_agent:
         print("\n" + "-"*60)
         print(f"\nFINAL SUMMARY (after {result['iterations']} iteration(s)):")
         print(result['final_summary'])

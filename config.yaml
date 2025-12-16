@@ -124,9 +124,21 @@ reflective_agent:
       moderate: 2    # Functions with cyclomatic complexity 4-8
       complex: 3     # Functions with cyclomatic complexity > 8
 
-# Entity Verification Configuration (Phase 1 - Hallucination Detection)
+# Entity Verification Configuration (Replaces Reflective Agent)
 entity_verification:
   enabled: true  # Enable entity verification for hallucination detection
+  
+  # Iteration settings
+  max_iterations: 3  # For training/inference
+  max_iterations_eval: 3  # For evaluation
+  
+  # Generation settings
+  temperature: 0.7
+  max_tokens_refinement: 300  # Enough for complete docstrings
+  fast_mode: false  # Enable for faster evaluation
+  greedy_decoding: false  # Use greedy instead of sampling (30-50% faster)
+  
+  # Entity verification thresholds
   hallucination_threshold: 0.30  # Maximum acceptable hallucination score (0.0-1.0)
   entity_weights:
     function_names: 1.0      # Critical - function name must match

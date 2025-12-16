@@ -7,7 +7,7 @@ from typing import Dict, List
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.rag.rag_system import RAGSystem
 from src.data.preprocessor import DataPreprocessor
-from src.agent.reflective_agent import ReflectiveAgent
+from src.agent.entity_refinement_agent import EntityRefinementAgent
 
 
 class InferencePipeline:
@@ -15,7 +15,7 @@ class InferencePipeline:
     
     def __init__(self, model: AutoModelForCausalLM, tokenizer: AutoTokenizer,
                  rag_system: RAGSystem, preprocessor: DataPreprocessor,
-                 reflective_agent: ReflectiveAgent, config: Dict):
+                 entity_agent: EntityRefinementAgent, config: Dict):
         """
         Initialize inference pipeline.
         
@@ -24,14 +24,14 @@ class InferencePipeline:
             tokenizer: Tokenizer
             rag_system: RAG system
             preprocessor: Data preprocessor
-            reflective_agent: Reflective agent
+            entity_agent: Entity refinement agent
             config: Configuration dictionary
         """
         self.model = model
         self.tokenizer = tokenizer
         self.rag_system = rag_system
         self.preprocessor = preprocessor
-        self.reflective_agent = reflective_agent
+        self.entity_agent = entity_agent
         self.config = config
         
     def generate_initial_summary(self, prompt: str, max_new_tokens: int = 256) -> str:
@@ -170,13 +170,13 @@ class InferencePipeline:
         
         return result
     
-    def predict_single(self, code: str, use_reflective_agent: bool = True) -> Dict:
+    def predict_single(self, code: str, use_entity_agent: bool = True) -> Dict:
         """
         Generate summary for a single code sample.
         
         Args:
             code: Python source code
-            use_reflective_agent: Whether to use reflective agent
+            use_entity_agent: Whether to use entity refinement agent
             
         Returns:
             Dictionary with summary and metadata
@@ -199,9 +199,9 @@ class InferencePipeline:
         # Generate initial summary
         initial_summary = self.generate_initial_summary(prompt)
         
-        # Apply reflective agent if enabled
-        if use_reflective_agent:
-            final_summary, iterations, metadata = self.reflective_agent.iterative_refinement(
+        # Apply entity refinement agent if enabled
+        if use_entity_agent:
+            final_summary, iterations, metadata = self.entity_agent.iterative_refinement(
                 code, initial_summary
             )
             
@@ -237,13 +237,13 @@ class InferencePipeline:
         return result
     
     def predict_batch(self, test_data: List[Dict], 
-                     use_reflective_agent: bool = True) -> List[Dict]:
+                     use_entity_agent: bool = True) -> List[Dict]:
         """
         Generate summaries for a batch of samples.
         
         Args:
             test_data: List of test samples with 'code'
-            use_reflective_agent: Whether to use reflective agent
+            use_entity_agent: Whether to use entity refinement agent
             
         Returns:
             List of predictions
@@ -254,7 +254,7 @@ class InferencePipeline:
         total_samples = len(test_data)
         
         print(f"Generating summaries for {total_samples} samples...")
-        print(f"Reflective agent: {'ENABLED' if use_reflective_agent else 'DISABLED'}")
+        print(f"Entity refinement agent: {'ENABLED' if use_entity_agent else 'DISABLED'}")
         
         start_time = time.time()
         
@@ -263,7 +263,7 @@ class InferencePipeline:
             
             prediction = self.predict_single(
                 sample['code'],
-                use_reflective_agent=use_reflective_agent
+                use_entity_agent=use_entity_agent
             )
             
             # Add reference if available

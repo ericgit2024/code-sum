@@ -270,15 +270,13 @@ class ReflectiveAgent:
                 is_approved = self.is_approved(feedback)
                 print(f"[DEBUG] Approved: {is_approved}")
             
-            # Check entity verification before approval
-            entity_approved = True
-            if self.entity_verification_enabled and entity_result:
-                entity_approved = entity_result.passes_threshold
-                if not entity_approved:
-                    print(f"[ENTITY VERIFICATION] Failed - hallucination score: {entity_result.hallucination_score:.3f}")
-            
-            if is_approved and entity_approved:
+            # Check approval (no dual approval - entity feedback already appended to critique)
+            if is_approved:
                 print(f"Summary approved after {iteration + 1} iteration(s)")
+                # Log entity verification status for tracking
+                if self.entity_verification_enabled and entity_result:
+                    print(f"[ENTITY VERIFICATION] Final status - hallucination score: {entity_result.hallucination_score:.3f}, passed: {entity_result.passes_threshold}")
+                
                 metadata = {
                     'scores_history': scores_history,
                     'final_score': weighted_score if self.scoring_enabled else None,
