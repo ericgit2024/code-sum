@@ -134,16 +134,13 @@ prompts:
     You are a code documentation expert. Generate concise Python docstrings that describe what functions do.
     
   instruction_template: |
-    Generate a concise docstring for this function. Write 1-2 sentences maximum.
+    Describe what this function does in 1-2 sentences:
     
-    Function code:
-    ```python
     {code}
-    ```
     
     {structure_summary}
     
-    Docstring (1-2 sentences, describe what it does):
+    Description:
     
   reflective_agent_prompt: |
     Review this docstring against the code. Rate it on each criterion with a score from 0.0 to 1.0.
@@ -165,15 +162,15 @@ prompts:
     If NOT APPROVED, briefly explain what needs improvement (1 sentence).
     
   refinement_prompt: |
-    Improve this docstring based on feedback. Write in natural language only.
+    Rewrite this description in plain English. Do NOT use docstring syntax.
     
     Code:
     {code}
     
-    Current docstring:
+    Current description:
     {draft_summary}
     
     Feedback:
     {feedback}
     
-    Write improved docstring (2-4 sentences, plain English, address feedback):
+    Write improved description (2-3 sentences, plain English, NO :param, NO :type):

@@ -144,13 +144,13 @@ class CriticRefinementAgent:
         Returns:
             Refined summary
         """
-        # Format refinement prompt
-        refinement_prompt = f"""Improve this docstring based on the feedback.
+        # Format refinement prompt - explicitly forbid docstring syntax
+        refinement_prompt = f"""Rewrite this description in plain English. Do NOT use docstring syntax or code formatting.
 
 Code:
 {code}
 
-Current docstring:
+Current description:
 {draft_summary}
 
 Feedback:
@@ -218,7 +218,7 @@ Write an improved docstring that addresses the feedback. Write in natural langua
     
     def _clean_summary(self, text: str) -> str:
         """
-        Clean generated summary.
+        Clean generated summary by aggressively removing docstring syntax.
         
         Args:
             text: Raw generated text
@@ -226,9 +226,31 @@ Write an improved docstring that addresses the feedback. Write in natural langua
         Returns:
             Cleaned summary
         """
+        import re
+        
+        # Remove triple quotes at start/end
+        text = text.strip()
+        if text.startswith('"""') or text.startswith("'''"):
+            text = text[3:]
+        if text.endswith('"""') or text.endswith("'''"):
+            text = text[:-3]
+        text = text.strip()
+        
+        # Remove docstring parameter syntax lines
+        # Pattern: :param name: description or :type name: type
+        text = re.sub(r':param\s+\w+:.*?(?=:param|:type|:return|:rtype|$)', '', text, flags=re.DOTALL)
+        text = re.sub(r':type\s+\w+:.*?(?=:param|:type|:return|:rtype|$)', '', text, flags=re.DOTALL)
+        text = re.sub(r':return:.*?(?=:param|:type|:rtype|$)', '', text, flags=re.DOTALL)
+        text = re.sub(r':rtype:.*?(?=:param|:type|:return|$)', '', text, flags=re.DOTALL)
+        
+        # Remove "Examples:" section and everything after
+        if 'Examples:' in text or 'Example:' in text:
+            text = re.split(r'Examples?:', text)[0]
+        
         # Remove prompt markers
         prompt_markers = ['Feedback:', 'Code:', 'Summary:', 'Docstring:', 'Output:', 
-                         'Improved docstring:', 'Explanation:', 'Write']
+                         'Improved docstring:', 'Explanation:', 'Write', 'Description:',
+                         'Current description:', 'Rewrite']
         for marker in prompt_markers:
             if marker in text:
                 parts = text.split(marker)
@@ -237,7 +259,7 @@ Write an improved docstring that addresses the feedback. Write in natural langua
                 else:
                     text = parts[0].strip()
         
-        # Remove code artifacts
+        # Process line by line
         lines = text.split('\n')
         cleaned_lines = []
         
@@ -245,22 +267,42 @@ Write an improved docstring that addresses the feedback. Write in natural langua
             line = line.strip()
             if not line:
                 continue
+            
+            # Skip lines that are docstring syntax
+            if line.startswith((':param', ':type', ':return', ':rtype', ':raises', ':note')):
+                continue
+            
+            # Skip lines with only triple quotes
+            if line in ['"""', "'''", '"""."""', "'''.''"]:
+                continue
+            
             # Remove bullet points
             if line.startswith(('- ', '* ', '• ')):
                 line = line[2:].strip()
+            
             # Skip code lines
             if line.startswith(('def ', 'class ', 'import ', 'from ', '>>>', '```')):
                 continue
-            if line in ['"""', "'''"]:
+            
+            # Skip example code (lines with brackets, equals, etc.)
+            if re.match(r'^\[.*\]$', line):  # [1, 2, 3]
                 continue
+            
             cleaned_lines.append(line)
         
         # Join into paragraph
         result = ' '.join(cleaned_lines)
         
+        # Remove any remaining docstring artifacts
+        result = result.replace('"""', '').replace("'''", '')
+        
         # Remove multiple spaces
         while '  ' in result:
             result = result.replace('  ', ' ')
+        
+        # Remove multiple periods
+        while '..' in result:
+            result = result.replace('..', '.')
         
         # Limit to 4 sentences max
         sentences = [s.strip() for s in result.split('.') if s.strip()]
@@ -275,7 +317,7 @@ Write an improved docstring that addresses the feedback. Write in natural langua
     
     def _is_valid_summary(self, summary: str) -> bool:
         """
-        Check if summary is valid.
+        Check if summary is valid (natural language, no code/docstring syntax).
         
         Args:
             summary: Summary to validate
@@ -288,6 +330,12 @@ Write an improved docstring that addresses the feedback. Write in natural langua
         
         words = summary.split()
         if len(words) < 3:
+            return False
+        
+        # Check for docstring syntax
+        docstring_indicators = [':param', ':type', ':return', ':rtype', ':raises', 
+                               '"""', "'''", ':note', ':example']
+        if any(indicator in summary for indicator in docstring_indicators):
             return False
         
         # Check it's not code
