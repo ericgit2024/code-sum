@@ -219,6 +219,7 @@ Write an improved docstring that addresses the feedback. Write in natural langua
     def _clean_summary(self, text: str) -> str:
         """
         Clean generated summary by aggressively removing docstring syntax.
+        Extracts only natural language description, removing all structured sections.
         
         Args:
             text: Raw generated text
@@ -236,16 +237,35 @@ Write an improved docstring that addresses the feedback. Write in natural langua
             text = text[:-3]
         text = text.strip()
         
-        # Remove docstring parameter syntax lines
-        # Pattern: :param name: description or :type name: type
+        # Extract only the text BEFORE any structured sections
+        # Common structured section headers
+        structured_sections = [
+            'Args:', 'Arguments:', 'Parameters:', 'Params:',
+            'Returns:', 'Return:', 'Yields:', 'Yield:',
+            'Raises:', 'Raise:', 'Throws:', 'Throw:',
+            'Examples:', 'Example:', 'Usage:',
+            'Notes:', 'Note:', 'Warnings:', 'Warning:',
+            'Assumptions:', 'Assumption:',
+            'Attributes:', 'Attribute:',
+            'See Also:', 'References:'
+        ]
+        
+        # Find the earliest occurrence of any structured section
+        earliest_pos = len(text)
+        for section in structured_sections:
+            pos = text.find(section)
+            if pos != -1 and pos < earliest_pos:
+                earliest_pos = pos
+        
+        # Keep only text before structured sections
+        if earliest_pos < len(text):
+            text = text[:earliest_pos]
+        
+        # Remove docstring parameter syntax lines (in case they're inline)
         text = re.sub(r':param\s+\w+:.*?(?=:param|:type|:return|:rtype|$)', '', text, flags=re.DOTALL)
         text = re.sub(r':type\s+\w+:.*?(?=:param|:type|:return|:rtype|$)', '', text, flags=re.DOTALL)
         text = re.sub(r':return:.*?(?=:param|:type|:rtype|$)', '', text, flags=re.DOTALL)
         text = re.sub(r':rtype:.*?(?=:param|:type|:return|$)', '', text, flags=re.DOTALL)
-        
-        # Remove "Examples:" section and everything after
-        if 'Examples:' in text or 'Example:' in text:
-            text = re.split(r'Examples?:', text)[0]
         
         # Remove prompt markers
         prompt_markers = ['Feedback:', 'Code:', 'Summary:', 'Docstring:', 'Output:', 
@@ -272,6 +292,10 @@ Write an improved docstring that addresses the feedback. Write in natural langua
             if line.startswith((':param', ':type', ':return', ':rtype', ':raises', ':note')):
                 continue
             
+            # Skip section headers
+            if any(line.startswith(section) for section in structured_sections):
+                continue
+            
             # Skip lines with only triple quotes
             if line in ['"""', "'''", '"""."""', "'''.''"]:
                 continue
@@ -286,6 +310,10 @@ Write an improved docstring that addresses the feedback. Write in natural langua
             
             # Skip example code (lines with brackets, equals, etc.)
             if re.match(r'^\[.*\]$', line):  # [1, 2, 3]
+                continue
+            
+            # Skip lines that look like code (contain = or {})
+            if '=' in line and '{' in line:
                 continue
             
             cleaned_lines.append(line)
