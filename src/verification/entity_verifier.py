@@ -47,6 +47,8 @@ class EntityVerifier:
         # Get configuration
         verification_config = self.config.get('entity_verification', {})
         self.hallucination_threshold = verification_config.get('hallucination_threshold', 0.30)
+        self.min_recall = verification_config.get('min_recall', 0.50)  # Require at least 50% of entities mentioned
+        self.min_f1_score = verification_config.get('min_f1_score', 0.40)  # Require balanced precision/recall
         self.entity_weights = verification_config.get('entity_weights', {
             'function_names': 1.0,
             'parameter_names': 1.0,
@@ -101,8 +103,12 @@ class EntityVerifier:
         func_precision = self._calculate_precision(func_tp, func_fp)
         func_recall = self._calculate_recall(func_tp, func_fn)
         
-        # Check if passes threshold
-        passes_threshold = hallucination_score <= self.hallucination_threshold
+        # Check if passes threshold (requires ALL criteria)
+        passes_threshold = (
+            hallucination_score <= self.hallucination_threshold and
+            recall >= self.min_recall and
+            f1_score >= self.min_f1_score
+        )
         
         return EntityVerificationResult(
             precision=precision,

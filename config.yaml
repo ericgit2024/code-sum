@@ -140,6 +140,8 @@ entity_verification:
   
   # Entity verification thresholds
   hallucination_threshold: 0.30  # Maximum acceptable hallucination score (0.0-1.0)
+  min_recall: 0.50              # Minimum recall - at least 50% of entities must be mentioned
+  min_f1_score: 0.40            # Minimum F1 score for balanced precision/recall
   entity_weights:
     function_names: 1.0      # Critical - function name must match
     parameter_names: 1.0     # Critical - all parameters must be mentioned

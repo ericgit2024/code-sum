@@ -138,7 +138,7 @@ class EntityExtractor:
     
     def extract_from_docstring(self, docstring: str) -> DocstringEntities:
         """
-        Extract entities from docstring using pattern matching.
+        Extract entities from docstring using pattern matching and word-based extraction.
         
         Args:
             docstring: Generated docstring text
@@ -157,13 +157,38 @@ class EntityExtractor:
         # Normalize docstring
         docstring_lower = docstring.lower()
         
+        # Extract all potential identifier words (snake_case or camelCase)
+        # This catches entities even when used in natural language
+        identifier_pattern = r'\b([a-z_][a-z0-9_]*)\b'
+        all_words = set(re.findall(identifier_pattern, docstring_lower))
+        
+        # Remove common English words that aren't entities
+        common_words = {
+            'the', 'a', 'an', 'and', 'or', 'if', 'when', 'that', 'this', 'is', 'are',
+            'be', 'to', 'of', 'in', 'for', 'on', 'with', 'as', 'by', 'from', 'at',
+            'it', 'its', 'has', 'have', 'had', 'was', 'were', 'been', 'being',
+            'do', 'does', 'did', 'done', 'doing', 'will', 'would', 'should', 'could',
+            'may', 'might', 'must', 'can', 'then', 'than', 'based', 'using', 'used',
+            'takes', 'returns', 'return', 'calculates', 'calculate', 'applies', 'apply',
+            'function', 'method', 'class', 'object', 'value', 'values', 'item', 'items',
+            'also', 'all', 'each', 'every', 'any', 'some', 'no', 'not', 'only',
+            'first', 'last', 'next', 'previous', 'new', 'old', 'same', 'different',
+            'get', 'set', 'add', 'remove', 'delete', 'update', 'create', 'make',
+            'exception', 'error', 'raises', 'raise', 'raised', 'less', 'greater',
+            'percentage', 'percent', 'amount', 'number', 'count', 'total', 'sum',
+            'final', 'initial', 'current', 'default', 'optional', 'required',
+            'true', 'false', 'none', 'null', 'empty', 'full'
+        }
+        
+        potential_entities = all_words - common_words
+        
         # Extract mentioned functions (look for function call patterns)
         # Patterns: "calls function_name", "uses function_name", "function_name()"
         function_patterns = [
-            r'calls?\s+([a-z_][a-z0-9_]*)',
-            r'uses?\s+([a-z_][a-z0-9_]*)',
-            r'invokes?\s+([a-z_][a-z0-9_]*)',
-            r'([a-z_][a-z0-9_]*)\s*\(\)',  # function_name()
+            r'calls?\\s+([a-z_][a-z0-9_]*)',
+            r'uses?\\s+([a-z_][a-z0-9_]*)',
+            r'invokes?\\s+([a-z_][a-z0-9_]*)',
+            r'([a-z_][a-z0-9_]*)\\s*\\(\\)',  # function_name()
         ]
         
         mentioned_functions = set()
@@ -171,14 +196,27 @@ class EntityExtractor:
             matches = re.findall(pattern, docstring_lower)
             mentioned_functions.update(matches)
         
+        # Also include potential entities that look like function names (snake_case with verb)
+        # Common function name patterns: calculate_, get_, set_, process_, validate_, etc.
+        function_prefixes = ['calculate', 'get', 'set', 'process', 'validate', 'check', 
+                            'update', 'create', 'delete', 'remove', 'add', 'find', 
+                            'search', 'filter', 'sort', 'parse', 'format', 'convert']
+        for entity in potential_entities:
+            if any(entity.startswith(prefix) for prefix in function_prefixes):
+                mentioned_functions.add(entity)
+        
         # Extract mentioned parameters
         # Patterns: "parameter param_name", "param_name parameter", "`param_name`"
+        # PLUS: any identifier that appears in natural language contexts
         param_patterns = [
-            r'parameter\s+([a-z_][a-z0-9_]*)',
-            r'param\s+([a-z_][a-z0-9_]*)',
-            r'argument\s+([a-z_][a-z0-9_]*)',
+            r'parameter\\s+([a-z_][a-z0-9_]*)',
+            r'param\\s+([a-z_][a-z0-9_]*)',
+            r'argument\\s+([a-z_][a-z0-9_]*)',
             r'`([a-z_][a-z0-9_]*)`',  # backtick-quoted names
             r"'([a-z_][a-z0-9_]*)'",  # single-quoted names
+            r'takes?\\s+(?:in\\s+)?(?:a\\s+)?([a-z_][a-z0-9_]*)',  # "takes in a param_name"
+            r'accepts?\\s+(?:a\\s+)?([a-z_][a-z0-9_]*)',  # "accepts param_name"
+            r'receives?\\s+(?:a\\s+)?([a-z_][a-z0-9_]*)',  # "receives param_name"
         ]
         
         mentioned_parameters = set()
@@ -186,10 +224,14 @@ class EntityExtractor:
             matches = re.findall(pattern, docstring_lower)
             mentioned_parameters.update(matches)
         
+        # Add all potential entities as possible parameters
+        # (they'll be filtered by the verifier based on actual code parameters)
+        mentioned_parameters.update(potential_entities)
+        
         # Extract mentioned variables (similar to parameters but in different context)
         var_patterns = [
-            r'variable\s+([a-z_][a-z0-9_]*)',
-            r'stores?\s+(?:in\s+)?([a-z_][a-z0-9_]*)',
+            r'variable\\s+([a-z_][a-z0-9_]*)',
+            r'stores?\\s+(?:in\\s+)?([a-z_][a-z0-9_]*)',
         ]
         
         mentioned_variables = set()
@@ -197,18 +239,20 @@ class EntityExtractor:
             matches = re.findall(pattern, docstring_lower)
             mentioned_variables.update(matches)
         
+        # Add potential entities as variables too
+        mentioned_variables.update(potential_entities)
+        
         # Extract return type mentions
         return_patterns = [
-            r'returns?\s+(?:a\s+)?([a-z_][a-z0-9_]*)',
-            r'outputs?\s+(?:a\s+)?([a-z_][a-z0-9_]*)',
-            r'yields?\s+(?:a\s+)?([a-z_][a-z0-9_]*)',
+            r'returns?\\s+(?:a\\s+)?(?:the\\s+)?([a-z_][a-z0-9_]*)',
+            r'outputs?\\s+(?:a\\s+)?(?:the\\s+)?([a-z_][a-z0-9_]*)',
+            r'yields?\\s+(?:a\\s+)?(?:the\\s+)?([a-z_][a-z0-9_]*)',
         ]
         
         mentioned_returns = set()
         for pattern in return_patterns:
             matches = re.findall(pattern, docstring_lower)
             # Filter out common words that aren't types
-            common_words = {'the', 'a', 'an', 'and', 'or', 'if', 'when', 'that', 'this'}
             mentioned_returns.update([m for m in matches if m not in common_words])
         
         return DocstringEntities(
@@ -217,6 +261,7 @@ class EntityExtractor:
             mentioned_variables=mentioned_variables,
             mentioned_returns=mentioned_returns
         )
+    
     
     def normalize_entity(self, entity: str) -> str:
         """
